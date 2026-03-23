@@ -1,6 +1,7 @@
 from tkinter import *
 from tkinter import ttk
 from tkinter import messagebox, simpledialog
+from locations_page import LocationPage
 
 # Dropdown options  
 existing_locations = ["Webster", "Pittsford", "Henrietta"]
@@ -12,13 +13,17 @@ class PyTrackApp(Tk):
         self.geometry("500x300")
 
         container = ttk.Frame(self)
-        container.pack(side="top", fill="both", expand=True)
+        container.pack(fill="both", expand=True)
 
         self.frames = {}
 
-        frame = StartPage(container, self)
-        self.frames[StartPage] = frame
-        frame.grid(row=0, column=0, sticky="nsew")
+        # add Both pages to the container
+        for F in (StartPage, LocationPage):
+            frame = F(container, self)
+            self.frames[F.__name__] = frame
+            frame.grid(row=0, column=0, sticky="nsew")
+        
+        self.show_frame("StartPage")
     
     def show_frame(self, page_class):
         frame = self.frames[page_class]
@@ -29,8 +34,10 @@ class StartPage(ttk.Frame):
     def create_new_location(self):
         # Code to create a new location
         new_location = simpledialog.askstring("Create New Location", "Enter the name of the new location:")
+        # Check if the new location already exists
         if new_location in existing_locations:
             messagebox.showerror("Error", f"Location '{new_location}' already exists.")
+        # Check if the new location is valid (not empty or just whitespace)
         elif new_location not in existing_locations and new_location is not None and new_location.strip() != "":
             existing_locations.append(new_location)
             self.cb['values'] = existing_locations
@@ -41,8 +48,16 @@ class StartPage(ttk.Frame):
     def cmd_submit(self):
         selected_location = self.cb.get()
         print(f"Selected location: {selected_location}")
+
         # Code to handle the selected location
-        pass
+        #get the location page
+        location_page = self.controller.frames["LocationPage"]
+
+        #send data to it
+        location_page.set_location(selected_location)
+
+        # show the location page
+        self.controller.show_frame("LocationPage")
 
     def __init__(self, parent, controller):
         super().__init__(parent)
