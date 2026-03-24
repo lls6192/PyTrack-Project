@@ -10,7 +10,7 @@ class PyTrackApp(Tk):
     def __init__(self):
         super().__init__()
         self.title("PyTrack")
-        self.geometry("500x300")
+        self.geometry("620x500")
 
         container = ttk.Frame(self)
         container.pack(fill="both", expand=True)
