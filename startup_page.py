@@ -78,7 +78,7 @@ class StartPage(ttk.Frame):
         lbl_existing_location.grid(row=1, column=0, padx=40, pady=1, sticky="w")
 
          # Combobox  
-        self.cb = ttk.Combobox(self, values=sorted(existing_locations))
+        self.cb = ttk.Combobox(self, values=sorted(existing_locations), state="readonly")
         self.cb.set("Select a location")
         self.cb.grid(row=2, column=0, padx=40, pady=1, sticky="w")
 
