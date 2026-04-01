@@ -10,7 +10,7 @@ class PyTrackApp(Tk):
     def __init__(self):
         super().__init__()
         self.title("PyTrack")
-        self.geometry("620x500")
+        self.geometry("620x400")
 
         container = ttk.Frame(self)
         container.pack(fill="both", expand=True)
@@ -34,16 +34,26 @@ class StartPage(ttk.Frame):
     def create_new_location(self):
         # Code to create a new location
         new_location = simpledialog.askstring("Create New Location", "Enter the name of the new location:")
+        
+        if new_location is None:
+            return
+
+        new_location = new_location.strip() 
+
         # Check if the new location already exists
-        if new_location in existing_locations:
+        if new_location == "":
+            messagebox.showerror("Error", "Location name cannot be empty.")
+        elif new_location in existing_locations:
             messagebox.showerror("Error", f"Location '{new_location}' already exists.")
         # Check if the new location is valid (not empty or just whitespace)
-        elif new_location not in existing_locations and new_location is not None and new_location.strip() != "":
+        else:
             existing_locations.append(new_location)
-            self.cb['values'] = existing_locations
+            self.cb['values'] = sorted(existing_locations)
             messagebox.showinfo("Create New Location", f"Location created: {new_location}")
             # Code to open the new location's page
-            pass
+            location_page = self.controller.frames["LocationPage"]
+            location_page.set_location(new_location)
+            self.controller.show_frame("LocationPage")
 
     def cmd_submit(self):
         selected_location = self.cb.get()
