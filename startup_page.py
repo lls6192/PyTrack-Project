@@ -1,10 +1,28 @@
+import sqlite3
+import pathlib
 from tkinter import *
 from tkinter import ttk
 from tkinter import messagebox, simpledialog
 from locations_page import LocationPage
 
-# Dropdown options  
-existing_locations = ["Webster", "Pittsford", "Henrietta"]
+db_file = pathlib.Path(r"pytrack_database.db")
+
+if db_file.exists():
+    conn = sqlite3.connect(db_file)
+    cur = conn.cursor()
+else:
+    messagebox.showerror("Database Error", f"Database file '{db_file}' not found.")
+    quit()
+
+def get_locations():
+    cur.execute("SELECT DISTINCT name FROM locations ORDER BY name")
+    return [row[0] for row in cur.fetchall()]
+
+def get_location_id(location_name):
+    cur.execute("SELECT id FROM locations WHERE name = ?", (location_name,))
+    result = cur.fetchone()
+    return result[0] if result else None
+
 
 class PyTrackApp(Tk):
     def __init__(self):
@@ -43,12 +61,16 @@ class StartPage(ttk.Frame):
         # Check if the new location already exists
         if new_location == "":
             messagebox.showerror("Error", "Location name cannot be empty.")
-        elif new_location in existing_locations:
+            return
+        elif get_location_id(new_location) is not None:
             messagebox.showerror("Error", f"Location '{new_location}' already exists.")
+            return
         # Check if the new location is valid (not empty or just whitespace)
         else:
-            existing_locations.append(new_location)
-            self.cb['values'] = sorted(existing_locations)
+            cur.execute("INSERT INTO locations (name) VALUES (?)", (new_location,))
+            conn.commit()
+            self.cb['values'] = get_locations()
+            self.cb.set(new_location)
             messagebox.showinfo("Create New Location", f"Location created: {new_location}")
             # Code to open the new location's page
             location_page = self.controller.frames["LocationPage"]
@@ -88,8 +110,9 @@ class StartPage(ttk.Frame):
         lbl_existing_location.grid(row=1, column=0, padx=40, pady=1, sticky="w")
 
          # Combobox  
-        self.cb = ttk.Combobox(self, values=sorted(existing_locations), state="readonly")
+        self.cb = ttk.Combobox(self, state="readonly")
         self.cb.set("Select a location")
+        self.cb['values'] = get_locations()
         self.cb.grid(row=2, column=0, padx=40, pady=1, sticky="w")
 
         # Button to display selection  
