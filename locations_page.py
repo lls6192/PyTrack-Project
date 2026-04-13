@@ -73,7 +73,7 @@ class LocationPage(ttk.Frame):
 
             if not quantity_text.isdigit():
                 messagebox.showerror("Error", "Quantity must be a whole number.")
-            return
+                return
 
             quantity = int(quantity_text)
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -87,7 +87,6 @@ class LocationPage(ttk.Frame):
                 "Restock Saved",
                 f"{quantity} of {flavor} added for {self.location_name}"
             )
-
             restock_window.destroy()
 
         # Buttons frame
