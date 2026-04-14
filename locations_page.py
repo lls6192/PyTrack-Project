@@ -80,6 +80,10 @@ class LocationPage(ttk.Frame):
             quantity = int(quantity_text)
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+            cur.execute("INSERT INTO inventory (location_id, flavor, quantity, timestamp) VALUES (?, ?, ?, ?)",
+                        (get_location_id(self.location_name), flavor, quantity, timestamp))
+            conn.commit()
+
             print(f"Location: {self.location_name}")
             print(f"Flavor Restocked: {flavor}")
             print(f"Quantity Added: {quantity}")
@@ -150,7 +154,8 @@ class LocationPage(ttk.Frame):
             quantity = int(quantity_text)
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-            cur.execute("INSERT INTO daily_sales (location_id, flavor, quantity, timestamp) VALUES (?, ?, ?, ?)", (get_location_id(self.location_name), flavor, quantity, timestamp))
+            cur.execute("INSERT INTO daily_sales (location_id, flavor, quantity, timestamp) VALUES (?, ?, ?, ?)", 
+                        (get_location_id(self.location_name), flavor, quantity, timestamp))
             conn.commit()
 
             print(f"Location: {self.location_name}")
