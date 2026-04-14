@@ -37,9 +37,6 @@ class LocationPage(ttk.Frame):
         restock_window.geometry("500x200")
         restock_window.grab_set()  # Make the restock window modal
 
-        flavor_label = Label(restock_window, text="Flavor Restocked:")
-        flavor_label.grid(row=0, column=0, pady=10, sticky="w")
-
         flavor_options = [
             "Vanilla",
             "Chocolate",
@@ -47,23 +44,6 @@ class LocationPage(ttk.Frame):
             "Neapolitan",
             "Cookie Dough"
         ]
-
-        flavor_var = StringVar()
-        flavor_dropdown = ttk.Combobox(
-            restock_window,
-            textvariable=flavor_var,
-            values=flavor_options,
-            state="readonly",
-            width = 12
-        )
-        flavor_dropdown.grid(row=0, column=1, padx=10, pady=(15,5), sticky="w")
-        flavor_dropdown.set("Select a flavor")
-
-        quantity_label = Label(restock_window, text = "Quantity Restocked:")
-        quantity_label.grid(row=0, column=2, pady=5, sticky="w")
-
-        quantity_entry = Entry(restock_window, width=4)
-        quantity_entry.grid(row=0, column=3, pady=5, sticky="w")
 
         rows_frame = Frame(restock_window)
         rows_frame.grid(row=1, column=0, columnspan=4, padx=10, pady=5, sticky="w")
@@ -134,6 +114,8 @@ class LocationPage(ttk.Frame):
             )
             restock_window.destroy()
 
+        add_restock_row()  # Add the first row by default
+
         add_button = Button(restock_window, text="Add Another Flavor", command=add_restock_row)
         add_button.grid(row=2, column=0, columnspan=4, pady=10)
 
@@ -161,12 +143,22 @@ class LocationPage(ttk.Frame):
             "Cookie Dough"
         ]
 
-        size_options = [
-            "Kiddie",
-            "Small",
-            "Medium",
-            "Large"
-        ]
+        size_options = ["Kiddie", "Small", "Medium", "Large"]
+
+        size_prices = {
+            "Kiddie": 3.00,
+            "Small": 3.50,
+            "Medium": 4.00,
+            "Large": 4.50
+        }
+
+        # for inventory quanity tracked in scoops
+        size_inventory_use = {
+            "Kiddie": 1,
+            "Small": 2,
+            "Medium": 3,
+            "Large": 4
+        }
 
         row_frame = Frame(daily_sales_window)
         row_frame.grid(row=1, column=0, columnspan=6, padx=10, pady=5, sticky="w")
@@ -218,13 +210,18 @@ class LocationPage(ttk.Frame):
 
             valid_entries = []
 
-            for flavor_var, quantity_entry in daily_sales_rows:
+            for flavor_var, size_var, quantity_entry in daily_sales_rows:
 
                 flavor = flavor_var.get().strip()
                 quantity_text = quantity_entry.get().strip()
+                size = size_var.get().strip()
 
                 if flavor == "Select a flavor":
                     messagebox.showerror("Error", "Please select a flavor.")
+                    return
+                
+                if size == "Select a size":
+                    messagebox.showerror("Error", "Please select a size.")
                     return
             
                 if quantity_text == "":
@@ -236,6 +233,40 @@ class LocationPage(ttk.Frame):
                     return
 
                 quantity = int(quantity_text)
+
+                # find flavor_id
+                cur.execute("SELECT id FROM flavors WHERE name = ?", (flavor,))
+                flavor_row = cur.fetchone()
+
+                if flavor_row is None:
+                    messagebox.showerror("Error", f"Flavor '{flavor}' is not in the database.")
+                    return
+                flavor_id = flavor_row[0]
+
+                # how much inventory to remove
+                inventory_use = size_inventory_use[size] * quantity
+
+                # check current inventory
+                cur.execute("SELECT quantity FROM inventory WHERE location_id = ? AND flavor_id = ?", (location_id, flavor_id))
+                inventory_row = cur.fetchone()
+
+                current_inventory = inventory_row[0] if inventory_row else 0
+
+                if current_inventory < inventory_use:
+                    messagebox.showerror("Error", f"Insufficient inventory for flavor '{flavor}'.")
+                    return
+                
+                revenue = size_prices[size] * quantity
+
+                valid_entries.append({
+                    "flavor_id": flavor_id,
+                    "flavor": flavor,
+                    "size": size,
+                    "quantity": quantity,
+                    "inventory_needed": inventory_use,
+                    "revenue": revenue
+                })
+
                 valid_entries.append((flavor, quantity))
             
             if not valid_entries:
@@ -243,17 +274,42 @@ class LocationPage(ttk.Frame):
                 return
 
             # add to database
-            for entry in valid_entries:
-                flavor, quantity = entry
-                cur.execute("INSERT INTO daily_sales (location_id, flavor, quantity, timestamp) VALUES (?, ?, ?, ?)", 
-                            (location_id, flavor, quantity, timestamp))
-            conn.commit()
+            try:
+                for entry in valid_entries:
+                    # insert into sales table
+                    cur.execute("""
+                    INSERT INTO sales (location_id, flavor_id, quantity, revenue, datetime, size)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    """, (
+                        location_id,
+                        entry["flavor_id"],
+                        entry["quantity_sold"],
+                        entry["revenue"],
+                        timestamp,
+                        entry["size"]
+                    ))
 
-            messagebox.showinfo(
-                "Daily Sales Saved",
-                f"Daily sales entered for {self.location_name}"
-            )
-            daily_sales_window.destroy()
+                    # subtract from inventory
+                    cur.execute("""
+                        UPDATE inventory
+                        SET quantity = quantity - ?
+                        WHERE location_id = ? AND flavor_id = ?
+                        """, (
+                        entry["inventory_needed"],
+                        location_id,
+                        entry["flavor_id"]
+                    ))
+                conn.commit()
+
+                messagebox.showinfo(
+                    "Daily Sales Saved",
+                    f"Daily sales entered for {self.location_name}"
+                )
+                daily_sales_window.destroy()
+        
+            except Exception as e:
+                conn.rollback()
+                messagebox.showerror("Error", f"An error occurred while saving daily sales: {str(e)}")
             
         add_daily_sales_row()  # Add the first row by default
 
