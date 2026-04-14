@@ -150,11 +150,8 @@ class LocationPage(ttk.Frame):
         # Flavors and Quantitiies Sold
         daily_sales_window = Toplevel(self)
         daily_sales_window.title("Enter Daily Sales")
-        daily_sales_window.geometry("500x200")
+        daily_sales_window.geometry("700x200")
         daily_sales_window.grab_set()  # Make the daily sales window modal
-
-        flavor_label = Label(daily_sales_window, text="Flavor Sold:")
-        flavor_label.grid(row=0, column=0, pady=(15,5))
 
         flavor_options = [
             "Vanilla",
@@ -164,31 +161,27 @@ class LocationPage(ttk.Frame):
             "Cookie Dough"
         ]
 
-        flavor_var = StringVar()
-        flavor_dropdown = ttk.Combobox(
-            daily_sales_window,
-            textvariable=flavor_var,
-            values=flavor_options,
-            state="readonly",
-            width=12
-        )
-        flavor_dropdown.grid(row=0, column=1, padx=10, pady=(15,5), sticky="w")
-        flavor_dropdown.set("Select a flavor")
-
-        quantity_label = Label(daily_sales_window, text="Quantity Sold:")
-        quantity_label.grid(row=0, column=2, pady=5, sticky="w")
-
-        quantity_entry = Entry(daily_sales_window, width=4)
-        quantity_entry.grid(row=0, column=3, padx=10, pady=5, sticky="w")
+        size_options = [
+            "Kiddie",
+            "Small",
+            "Medium",
+            "Large"
+        ]
 
         row_frame = Frame(daily_sales_window)
-        row_frame.grid(row=1, column=0, columnspan=4, padx=10, pady=5, sticky="w")
+        row_frame.grid(row=1, column=0, columnspan=6, padx=10, pady=5, sticky="w")
 
         daily_sales_rows = []
 
         def add_daily_sales_row():
             row_index = len(daily_sales_rows)
+
             flavor_var = StringVar()
+            size_var = StringVar()
+
+            flavor_label = Label(row_frame, text="Flavor Sold:")
+            flavor_label.grid(row=row_index, column=0, pady=10, sticky="w")
+
             flavor_dropdown = ttk.Combobox(
                 row_frame,
                 textvariable=flavor_var,
@@ -199,14 +192,24 @@ class LocationPage(ttk.Frame):
             flavor_dropdown.grid(row=row_index, column=1, padx=10, pady=5, sticky="w")
             flavor_dropdown.set("Select a flavor")
 
-            flavor_label = Label(row_frame, text="Flavor Sold:")
-            flavor_label.grid(row=row_index, column=0, pady=10, sticky="w")
+            size_label = Label(row_frame, text="Size:")
+            size_label.grid(row=row_index, column=2, padx=10, pady=5, sticky="w")
+
+            size_dropdown = ttk.Combobox(
+                row_frame,
+                textvariable=size_var,
+                values=size_options,
+                state="readonly",
+                width = 10
+            )
+            size_dropdown.grid(row=row_index, column=3, padx=10, pady=5, sticky="w")
+            size_dropdown.set("Select a size")
 
             quantity_label = Label(row_frame, text="Quantity Sold:")
-            quantity_label.grid(row=row_index, column=2, padx=10, pady=5, sticky="w")
+            quantity_label.grid(row=row_index, column=4, padx=10, pady=5, sticky="w")
             
             quantity_entry = Entry(row_frame, width=4)
-            quantity_entry.grid(row=row_index, column=3, padx=10, pady=5, sticky="w")
+            quantity_entry.grid(row=row_index, column=5, padx=10, pady=5, sticky="w")
             daily_sales_rows.append((flavor_var, quantity_entry))
 
         def submit_daily_sales():
@@ -251,6 +254,8 @@ class LocationPage(ttk.Frame):
                 f"Daily sales entered for {self.location_name}"
             )
             daily_sales_window.destroy()
+            
+        add_daily_sales_row()  # Add the first row by default
 
         add_daily_sales_button = Button(daily_sales_window, text="Add Another Flavor", command=add_daily_sales_row)
         add_daily_sales_button.grid(row=2, column=0, columnspan=4, pady=10)
