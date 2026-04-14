@@ -2,8 +2,7 @@ from tkinter import *
 from tkinter import ttk
 from tkinter import messagebox, simpledialog
 from datetime import datetime
-
-from startup_page import get_location_id
+from database import get_location_id, conn, cur, get_locations
 
 class LocationPage(ttk.Frame):
     def __init__(self, parent, controller):
@@ -35,11 +34,11 @@ class LocationPage(ttk.Frame):
         # Quantity and Flavor Restocked, and Date/Time
         restock_window = Toplevel(self)
         restock_window.title("Restock Inventory")
-        restock_window.geometry("400x200")
+        restock_window.geometry("500x200")
         restock_window.grab_set()  # Make the restock window modal
 
         flavor_label = Label(restock_window, text="Flavor Restocked:")
-        flavor_label.grid(row=0, column=0, padx=10, pady=(15,5), sticky="w")
+        flavor_label.grid(row=0, column=0, pady=10, sticky="w")
 
         flavor_options = [
             "Vanilla",
@@ -54,51 +53,93 @@ class LocationPage(ttk.Frame):
             restock_window,
             textvariable=flavor_var,
             values=flavor_options,
-            state="readonly"
+            state="readonly",
+            width = 12
         )
         flavor_dropdown.grid(row=0, column=1, padx=10, pady=(15,5), sticky="w")
         flavor_dropdown.set("Select a flavor")
 
         quantity_label = Label(restock_window, text = "Quantity Restocked:")
-        quantity_label.grid(row=1, column=0, padx=10, pady=5, sticky="w")
+        quantity_label.grid(row=0, column=2, pady=5, sticky="w")
 
-        quantity_entry = Entry(restock_window)
-        quantity_entry.grid(row=1, column=1, padx=10, pady=5, sticky="w")
+        quantity_entry = Entry(restock_window, width=4)
+        quantity_entry.grid(row=0, column=3, pady=5, sticky="w")
+
+        rows_frame = Frame(restock_window)
+        rows_frame.grid(row=1, column=0, columnspan=4, padx=10, pady=5, sticky="w")
+
+        restock_rows = []
+
+        def add_restock_row():
+            row_index = len(restock_rows)
+            flavor_var = StringVar()
+            flavor_dropdown = ttk.Combobox(
+                rows_frame,
+                textvariable=flavor_var,
+                values=flavor_options,
+                state="readonly",
+                width=12
+            )
+            flavor_dropdown.grid(row=row_index, column=1, padx=10, pady=  5, sticky="w")
+            flavor_dropdown.set("Select a flavor")
+
+            flavor_label = Label(rows_frame, text="Flavor Restocked:")
+            flavor_label.grid(row=row_index, column=0, pady=10, sticky="w")
+
+            quantity_label = Label(rows_frame, text = "Quantity Restocked:")
+            quantity_label.grid(row=row_index, column=2, padx=10, pady=5, sticky="w")
+            
+            quantity_entry = Entry(rows_frame, width = 4)
+            quantity_entry.grid(row=row_index, column=3, padx=10, pady=5, sticky="w")
+            restock_rows.append((flavor_var, quantity_entry))
         
         def submit_restock():
-            flavor = flavor_var.get().strip()
-            quantity_text = quantity_entry.get().strip()
-
-            if quantity_text == "":
-                messagebox.showerror("Error", "Quantity cannot be empty.")
-                return
-
-            if not quantity_text.isdigit():
-                messagebox.showerror("Error", "Quantity must be a whole number.")
-                return
-
-            quantity = int(quantity_text)
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            location_id = get_location_id(self.location_name)
 
-            cur.execute("INSERT INTO inventory (location_id, flavor, quantity, timestamp) VALUES (?, ?, ?, ?)",
-                        (get_location_id(self.location_name), flavor, quantity, timestamp))
+            valid_entries = []
+
+            for flavor_var, quantity_entry in restock_rows:
+                flavor = flavor_var.get().strip()
+                quantity_text = quantity_entry.get().strip()
+
+                if flavor == "Select a flavor":
+                    messagebox.showerror("Error", "Please select a flavor for all entries.")
+                    return
+
+                if quantity_text == "":
+                    messagebox.showerror("Error", "Quantity cannot be empty.")
+                    return
+
+                if not quantity_text.isdigit():
+                    messagebox.showerror("Error", "Quantity must be a whole number.")
+                    return
+
+                quantity = int(quantity_text)
+                valid_entries.append((flavor, quantity))
+            
+            if not valid_entries:
+                messagebox.showerror("Error", "Please add at least one flavor to restock.")
+                return
+            
+            for entry in valid_entries:
+                flavor, quantity = entry
+                cur.execute("INSERT INTO inventory (location_id, flavor, quantity, timestamp) VALUES (?, ?, ?, ?)",
+                            (location_id, flavor, quantity, timestamp))
             conn.commit()
-
-            print(f"Location: {self.location_name}")
-            print(f"Flavor Restocked: {flavor}")
-            print(f"Quantity Added: {quantity}")
-            print(f"Date/Time: {timestamp}")
 
             messagebox.showinfo(
                 "Restock Saved",
-                f"{quantity} of {flavor} added for {self.location_name}"
+                f"Inventory restocked for {self.location_name}"
             )
             restock_window.destroy()
 
+        add_button = Button(restock_window, text="Add Another Flavor", command=add_restock_row)
+        add_button.grid(row=2, column=0, columnspan=4, pady=10)
+
         # Buttons frame
         button_frame = Frame(restock_window)
-        button_frame.grid(row=2, column=0, columnspan=2, pady=20)
-
+        button_frame.grid(row=3, column=0, columnspan=4, pady=20)
         ok_button = Button(button_frame, text="OK", width=12, command=submit_restock)
         ok_button.grid(row=0, column=0, padx=10)
 
@@ -154,6 +195,7 @@ class LocationPage(ttk.Frame):
             quantity = int(quantity_text)
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+            # add to database
             cur.execute("INSERT INTO daily_sales (location_id, flavor, quantity, timestamp) VALUES (?, ?, ?, ?)", 
                         (get_location_id(self.location_name), flavor, quantity, timestamp))
             conn.commit()
