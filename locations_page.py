@@ -301,6 +301,21 @@ class LocationPage(ttk.Frame):
                         location_id,
                         entry["flavor_id"]
                     ))
+
+                    # check updated inventory level
+                    cur.execute("""
+                        SELECT quantity FROM inventory
+                        WHERE location_id = ? AND flavor_id = ?
+                    """, (location_id, entry["flavor_id"]))
+
+                    updated_quantity = cur.fetchone()[0]
+
+                    if updated_quantity < 20:
+                        messagebox.showwarning(
+                            "Low Inventory Warning",
+                            f"Inventory for flavor '{entry['flavor']}' is low ({updated_quantity} scoops remaining). Please restock soon."
+                        )
+
                 conn.commit()
 
                 messagebox.showinfo(
