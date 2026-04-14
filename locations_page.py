@@ -154,7 +154,7 @@ class LocationPage(ttk.Frame):
         daily_sales_window.grab_set()  # Make the daily sales window modal
 
         flavor_label = Label(daily_sales_window, text="Flavor Sold:")
-        flavor_label.grid(row=0, column=0, padx=10, pady=(15,5), sticky="w")
+        flavor_label.grid(row=0, column=0, pady=(15,5))
 
         flavor_options = [
             "Vanilla",
@@ -257,7 +257,7 @@ class LocationPage(ttk.Frame):
 
          # Buttons frame
         button_frame = Frame(daily_sales_window)
-        button_frame.grid(row=2, column=0, columnspan=2, pady=20)
+        button_frame.grid(row=3, column=0, columnspan=2, pady=20)
 
         ok_button = Button(button_frame, text="OK", width=12, command=submit_daily_sales)
         ok_button.grid(row=0, column=0, padx=10)
