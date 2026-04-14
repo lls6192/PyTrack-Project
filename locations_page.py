@@ -104,6 +104,8 @@ class LocationPage(ttk.Frame):
             
             for entry in valid_entries:
                 flavor, quantity = entry
+                # convert from number of 5-gallon buckets to number of scoops (assuming 1 bucket = 32 scoops)
+                quantity = quantity * 32 
                 cur.execute("INSERT INTO inventory (location_id, flavor, quantity, timestamp) VALUES (?, ?, ?, ?)",
                             (location_id, flavor, quantity, timestamp))
             conn.commit()
