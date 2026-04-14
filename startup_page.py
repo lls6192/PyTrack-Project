@@ -71,6 +71,12 @@ class StartPage(ttk.Frame):
         # show the location page
         self.controller.show_frame("LocationPage")
 
+    def generate_report(self):
+        # Code to generate a report for the whole company
+        messagebox.showinfo("Generate Report", "Generating company report...")
+        # Use database and pandas dataframe to generate the report
+        #TODO: Implement pandas dataframe to generate report
+
     def __init__(self, parent, controller):
         super().__init__(parent)
     
@@ -110,6 +116,12 @@ class StartPage(ttk.Frame):
         # Button to create a new location
         btn_create_new_location = Button(self, text="Create New Location", command=self.create_new_location)
         btn_create_new_location.grid(row=2, column=1, padx=5, sticky="w")
+
+        #------------------------------------------------------------------
+        # Generate Report button for whole company
+        btn_generate_report = Button(self, text="Generate Company Report", command=self.generate_report)
+        btn_generate_report.grid(row=4, column=0, columnspan=2, pady=20)
+
 
 if __name__ == "__main__":
     app = PyTrackApp()
