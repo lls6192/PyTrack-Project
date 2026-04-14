@@ -150,7 +150,7 @@ class LocationPage(ttk.Frame):
         # Flavors and Quantitiies Sold
         daily_sales_window = Toplevel(self)
         daily_sales_window.title("Enter Daily Sales")
-        daily_sales_window.geometry("400 x 200")
+        daily_sales_window.geometry("500x200")
         daily_sales_window.grab_set()  # Make the daily sales window modal
 
         flavor_label = Label(daily_sales_window, text="Flavor Sold:")
@@ -169,47 +169,91 @@ class LocationPage(ttk.Frame):
             daily_sales_window,
             textvariable=flavor_var,
             values=flavor_options,
-            state="readonly"
+            state="readonly",
+            width=12
         )
         flavor_dropdown.grid(row=0, column=1, padx=10, pady=(15,5), sticky="w")
         flavor_dropdown.set("Select a flavor")
 
         quantity_label = Label(daily_sales_window, text="Quantity Sold:")
-        quantity_label.grid(row=1, column=0, padx=10, pady=5, sticky="w")
+        quantity_label.grid(row=0, column=2, pady=5, sticky="w")
 
-        quantity_entry = Entry(daily_sales_window)
-        quantity_entry.grid(row=1, column=1, padx=10, pady=5, sticky="w")
+        quantity_entry = Entry(daily_sales_window, width=4)
+        quantity_entry.grid(row=0, column=3, padx=10, pady=5, sticky="w")
+
+        row_frame = Frame(daily_sales_window)
+        row_frame.grid(row=1, column=0, columnspan=4, padx=10, pady=5, sticky="w")
+
+        daily_sales_rows = []
+
+        def add_daily_sales_row():
+            row_index = len(daily_sales_rows)
+            flavor_var = StringVar()
+            flavor_dropdown = ttk.Combobox(
+                row_frame,
+                textvariable=flavor_var,
+                values=flavor_options,
+                state="readonly",
+                width=12
+            )
+            flavor_dropdown.grid(row=row_index, column=1, padx=10, pady=5, sticky="w")
+            flavor_dropdown.set("Select a flavor")
+
+            flavor_label = Label(row_frame, text="Flavor Sold:")
+            flavor_label.grid(row=row_index, column=0, pady=10, sticky="w")
+
+            quantity_label = Label(row_frame, text="Quantity Sold:")
+            quantity_label.grid(row=row_index, column=2, padx=10, pady=5, sticky="w")
+            
+            quantity_entry = Entry(row_frame, width=4)
+            quantity_entry.grid(row=row_index, column=3, padx=10, pady=5, sticky="w")
+            daily_sales_rows.append((flavor_var, quantity_entry))
 
         def submit_daily_sales():
-            flavor = flavor_var.get().strip()
-            quantity_text = quantity_entry.get().strip()
-
-            if quantity_text == "":
-                messagebox.showerror("Error", "Quantity cannot be empty.")
-                return
-
-            if not quantity_text.isdigit():
-                messagebox.showerror("Error", "Quantity must be a whole number.")
-                return
-
-            quantity = int(quantity_text)
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            location_id = get_location_id(self.location_name)
+
+            valid_entries = []
+
+            for flavor_var, quantity_entry in daily_sales_rows:
+
+                flavor = flavor_var.get().strip()
+                quantity_text = quantity_entry.get().strip()
+
+                if flavor == "Select a flavor":
+                    messagebox.showerror("Error", "Please select a flavor.")
+                    return
+            
+                if quantity_text == "":
+                    messagebox.showerror("Error", "Quantity cannot be empty.")
+                    return
+
+                if not quantity_text.isdigit():
+                    messagebox.showerror("Error", "Quantity must be a whole number.")
+                    return
+
+                quantity = int(quantity_text)
+                valid_entries.append((flavor, quantity))
+            
+            if not valid_entries:
+                messagebox.showerror("Error", "Please add at least one flavor sold.")
+                return
 
             # add to database
-            cur.execute("INSERT INTO daily_sales (location_id, flavor, quantity, timestamp) VALUES (?, ?, ?, ?)", 
-                        (get_location_id(self.location_name), flavor, quantity, timestamp))
+            for entry in valid_entries:
+                flavor, quantity = entry
+                cur.execute("INSERT INTO daily_sales (location_id, flavor, quantity, timestamp) VALUES (?, ?, ?, ?)", 
+                            (location_id, flavor, quantity, timestamp))
             conn.commit()
-
-            print(f"Location: {self.location_name}")
-            print(f"Flavor Sold: {flavor}")
-            print(f"Quantity Sold: {quantity}")
-            print(f"Date/Time: {timestamp}")
 
             messagebox.showinfo(
                 "Daily Sales Saved",
-                f"{quantity} of {flavor} sold for {self.location_name}"
+                f"Daily sales entered for {self.location_name}"
             )
             daily_sales_window.destroy()
+
+        add_daily_sales_button = Button(daily_sales_window, text="Add Another Flavor", command=add_daily_sales_row)
+        add_daily_sales_button.grid(row=2, column=0, columnspan=4, pady=10)
 
          # Buttons frame
         button_frame = Frame(daily_sales_window)
