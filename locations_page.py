@@ -3,6 +3,8 @@ from tkinter import ttk
 from tkinter import messagebox, simpledialog
 from datetime import datetime
 
+from startup_page import get_location_id
+
 class LocationPage(ttk.Frame):
     def __init__(self, parent, controller):
         super().__init__(parent)
@@ -147,6 +149,9 @@ class LocationPage(ttk.Frame):
 
             quantity = int(quantity_text)
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+            cur.execute("INSERT INTO daily_sales (location_id, flavor, quantity, timestamp) VALUES (?, ?, ?, ?)", (get_location_id(self.location_name), flavor, quantity, timestamp))
+            conn.commit()
 
             print(f"Location: {self.location_name}")
             print(f"Flavor Sold: {flavor}")
