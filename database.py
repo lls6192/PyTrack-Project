@@ -1,6 +1,8 @@
 import sqlite3
 import pathlib
 from tkinter import messagebox
+import logging
+from datetime import datetime
 
 db_file = pathlib.Path(r"pytrack_database.db")
 
@@ -36,3 +38,15 @@ def add_fixed_costs(item, cost, monthly):
     INSERT INTO fixed_costs (item, cost)               
     VALUES (Rent per location, 1000, monthly, Utilities per location, 250, monthly, Labor per location, 15000, monthly, Equipment leases per location, 2000, monthly )               
     """, (item, cost, monthly))
+
+logging.basicConfig(
+    filename="daily_log.txt", \
+    level=logging.INFO,
+    format="%(asctime)s - %(message)s"
+)
+
+def log_sale(Total_price, Quantity, Item):
+    logging.info(f"SALE - ITEM:{Item}, Qty: {Quantity}, Total: ${Total_price}")
+
+def log_inventory(item, change, new_stock):
+    logging.info(f"INVENTORY - ITEM: {item}, Change: {change}, New Stock: {new_stock}")
