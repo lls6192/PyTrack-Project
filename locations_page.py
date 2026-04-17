@@ -350,6 +350,20 @@ class LocationPage(ttk.Frame):
         # Include fixed costs and sales revenue
         # Have monthly income statements for individual locations and the entire company
         print(f"Generate Report for {self.location_name}")
+        cur.execute("SELECT SUM(total) FROM sales")
+        total_sales = cur.fetchone()[0] or 0
+
+        cur.execute("SELECT SUM(amount) FROM fixed_costs")
+        total_fixed = cur.fetchone()[0] or 0
+
+        profit = total_sales - total_fixed
+        print("Total Sales: ${total_sales}")
+        print("Fixed Costs: ${total_fixed}")
+        print("Profit: ${profit}")
+    
+
+
+
 
     def set_location(self, location_name):
         self.location_name = location_name
