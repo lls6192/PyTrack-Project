@@ -50,3 +50,16 @@ def log_sale(Total_price, Quantity, Item):
 
 def log_inventory(item, change, new_stock):
     logging.info(f"INVENTORY - ITEM: {item}, Change: {change}, New Stock: {new_stock}")
+
+def seed_flavors():
+    flavors = [
+        ("Vanilla",),
+        ("Chocolate",),
+        ("Cookies & Cream",),
+        ("Neapolitan",),
+        ("Cookie Dough",)
+    ]
+    cur.executemany("INSERT OR IGNORE INTO flavors (name) VALUES (?)", flavors)
+    conn.commit()
+
+seed_flavors()
