@@ -182,6 +182,9 @@ class LocationPage(ttk.Frame):
             "Large": 4
         }
 
+        # Cones/Container
+        cone_container_options = ["Standard Ice Cream Cone", "Waffle Cone", "Sugar Cone", "Dish with Spoon"]
+
         row_frame = Frame(daily_sales_window)
         row_frame.grid(row=1, column=0, columnspan=6, padx=10, pady=5, sticky="w")
 
@@ -224,7 +227,17 @@ class LocationPage(ttk.Frame):
             
             quantity_entry = Entry(row_frame, width=4)
             quantity_entry.grid(row=row_index, column=5, padx=10, pady=5, sticky="w")
-            daily_sales_rows.append((flavor_var, size_var, quantity_entry))
+
+            cone_container_entry = ttk.Combobox(
+                row_frame,
+                values=cone_container_options,
+                state="readonly",
+                width=25
+            )
+            cone_container_entry.grid(row=row_index, column=6, padx=10, pady=5, sticky="w")
+            cone_container_entry.set("Select cone/container")
+
+            daily_sales_rows.append((flavor_var, size_var, quantity_entry, cone_container_entry))
 
         def submit_daily_sales():
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -232,7 +245,7 @@ class LocationPage(ttk.Frame):
 
             valid_entries = []
 
-            for flavor_var, size_var, quantity_entry in daily_sales_rows:
+            for flavor_var, size_var, quantity_entry, cone_container_entry, cone_container_quantity_entry in daily_sales_rows:
 
                 flavor = flavor_var.get().strip()
                 quantity_text = quantity_entry.get().strip()
@@ -253,6 +266,11 @@ class LocationPage(ttk.Frame):
                 if not quantity_text.isdigit():
                     messagebox.showerror("Error", "Quantity must be a whole number.")
                     return
+                
+                if cone_container_entry.get() == "Select cone/container":
+                    messagebox.showerror("Error", "Please select a cone/container option.")
+                    return
+                
 
                 quantity = int(quantity_text)
 
@@ -267,6 +285,7 @@ class LocationPage(ttk.Frame):
 
                 # how much inventory to remove
                 inventory_use = size_inventory_use[size] * quantity
+                inventory_container_use = quantity
 
                 # check current inventory
                 cur.execute("SELECT quantity FROM inventory WHERE location_id = ? AND flavor_id = ?", (location_id, flavor_id))
@@ -278,6 +297,16 @@ class LocationPage(ttk.Frame):
                     messagebox.showerror("Error", f"Insufficient inventory for flavor '{flavor}'.")
                     return
                 
+                # check inventory for cones/containers
+                cur.execute("SELECT quantity FROM inventory WHERE location_id = ? AND cone_container = ?", (location_id, cone_container_entry.get()))
+                container_inventory_row = cur.fetchone() 
+
+                current_container_inventory = container_inventory_row[0] if container_inventory_row else 0
+
+                if current_container_inventory < inventory_container_use:
+                    messagebox.showerror("Error", f"Insufficient inventory for cone/container '{cone_container_entry.get()}'.")
+                    return
+                
                 revenue = size_prices[size] * quantity
 
                 valid_entries.append({
@@ -286,7 +315,8 @@ class LocationPage(ttk.Frame):
                     "size": size,
                     "quantity": quantity,
                     "inventory_needed": inventory_use,
-                    "revenue": revenue
+                    "revenue": revenue,
+                    "cone_container": cone_container_entry.get(),
                 })
             
             if not valid_entries:
@@ -298,18 +328,19 @@ class LocationPage(ttk.Frame):
                 for entry in valid_entries:
                     # insert into sales table
                     cur.execute("""
-                    INSERT INTO sales (location_id, flavor_id, quantity, revenue, datetime, size)
-                    VALUES (?, ?, ?, ?, ?, ?)
+                    INSERT INTO sales (location_id, flavor_id, quantity, revenue, datetime, size, cone_container)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
                     """, (
                         location_id,
                         entry["flavor_id"],
                         entry["quantity"],
                         entry["revenue"],
                         timestamp,
-                        entry["size"]
+                        entry["size"],
+                        entry["cone_container"]
                     ))
 
-                    # subtract from inventory
+                    # subtract from flavor inventory
                     cur.execute("""
                         UPDATE inventory
                         SET quantity = quantity - ?
@@ -320,7 +351,18 @@ class LocationPage(ttk.Frame):
                         entry["flavor_id"]
                     ))
 
-                    # check updated inventory level
+                    # subtract from cone/container inventory
+                    cur.execute("""
+                        UPDATE inventory                        
+                        SET quantity = quantity - ?
+                        WHERE location_id = ? AND cone_container = ?
+                    """, (
+                        entry["inventory_container_use"],
+                        location_id,
+                        entry["cone_container"]
+                    ))
+
+                    # check updated flavor inventory level
                     cur.execute("""
                         SELECT quantity FROM inventory
                         WHERE location_id = ? AND flavor_id = ?
@@ -332,6 +374,18 @@ class LocationPage(ttk.Frame):
                         messagebox.showwarning(
                             "Low Inventory Warning",
                             f"Inventory for flavor '{entry['flavor']}' is low ({updated_quantity} scoops remaining). Please restock soon."
+                        )
+
+                    # check updated cone/container inventory level
+                    cur.execute("""
+                        SELECT quantity FROM inventory
+                        WHERE location_id = ? AND cone_container = ?
+                    """, (location_id, entry["cone_container"]))
+                    updated_container_quantity = cur.fetchone()[0]
+                    if updated_container_quantity < 20:
+                        messagebox.showwarning(
+                            "Low Inventory Warning",
+                            f"Inventory for cone/container '{entry['cone_container']}' is low ({updated_container_quantity} remaining). Please restock soon."
                         )
 
                 conn.commit()
