@@ -288,8 +288,6 @@ class LocationPage(ttk.Frame):
                     "inventory_needed": inventory_use,
                     "revenue": revenue
                 })
-
-                valid_entries.append((flavor, quantity))
             
             if not valid_entries:
                 messagebox.showerror("Error", "Please add at least one flavor sold.")
@@ -337,6 +335,8 @@ class LocationPage(ttk.Frame):
                         )
 
                 conn.commit()
+
+                log_sale(entry["revenue"], entry["quantity"], f"{entry['size']} {entry['flavor']}")
 
                 messagebox.showinfo(
                     "Daily Sales Saved",
