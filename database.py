@@ -62,4 +62,9 @@ def seed_flavors():
     cur.executemany("INSERT OR IGNORE INTO flavors (name) VALUES (?)", flavors)
     conn.commit()
 
+def get_flavor_id(flavor_name):
+    cur.execute("SELECT id FROM flavors WHERE name = ?", (flavor_name,))
+    result = cur.fetchone()
+    return result[0] if result else None
+
 seed_flavors()
