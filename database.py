@@ -70,28 +70,41 @@ def get_flavor_id(flavor_name):
 def add_monthly_fixed_costs():
     current_month = datetime.now().strftime("%Y-%m")
 
-    # check if fixed costs for this month already exist
-    cur.execute("""
-        SELECT COUNT(*)
-        FROM fixed_costs
-        WHERE month = ?
-    """, (current_month,))
-    count = cur.fetchone()[0]
+    locations = get_locations()
+    for location in locations:
+        location_id = get_location_id(location)
 
-    if count == 0:
-        fixed_cost_items = [
-            ("Rent per location", 1000, "monthly", current_month),
-            ("Utilities per location", 250, "monthly", current_month),
-            ("Labor per location", 15000, "monthly", current_month),
-            ("Equipment leases per location", 2000, "monthly", current_month)
-        ]
+        # check if fixed costs for this month already exist
+        cur.execute("""
+            SELECT COUNT(*)
+            FROM fixed_costs
+            WHERE location_id = ? AND month = ?
+        """, (location_id, current_month))
+        count = cur.fetchone()[0]
 
-        cur.executemany("""
-            INSERT INTO fixed_costs (name, amount, frequency, month)
-            VALUES (?, ?, ?, ?)
-        """, fixed_cost_items)
+        if count == 0:
+            fixed_cost_items = [
+                ("Rent per location", 1000, "monthly", current_month, location_id),
+                ("Utilities per location", 250, "monthly", current_month, location_id),
+                ("Labor per location", 15000, "monthly", current_month, location_id),
+                ("Equipment leases per location", 2000, "monthly", current_month, location_id)
+            ]
+
+            cur.executemany("""
+                INSERT INTO fixed_costs (name, amount, frequency, month, location_id)
+                VALUES (?, ?, ?, ?, ?)
+            """, fixed_cost_items)
 
         conn.commit()
+
+def get_total_fixed_costs(location_id, month):
+    cur.execute("""
+        SELECT SUM(amount) 
+        FROM fixed_costs 
+        WHERE location_id = ? AND month = ?
+    """, (location_id, month))
+    result = cur.fetchone()[0]
+    return result if result else 0
 
 seed_flavors()
 add_monthly_fixed_costs()
