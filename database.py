@@ -67,4 +67,31 @@ def get_flavor_id(flavor_name):
     result = cur.fetchone()
     return result[0] if result else None
 
+def add_monthly_fixed_costs():
+    current_month = datetime.now().strftime("%Y-%m")
+
+    # check if fixed costs for this month already exist
+    cur.execute("""
+        SELECT COUNT(*)
+        FROM fixed_costs
+        WHERE month = ?
+    """, (current_month,))
+    count = cur.fetchone()[0]
+
+    if count == 0:
+        fixed_cost_items = [
+            ("Rent per location", 1000, "monthly", current_month),
+            ("Utilities per location", 250, "monthly", current_month),
+            ("Labor per location", 15000, "monthly", current_month),
+            ("Equipment leases per location", 2000, "monthly", current_month)
+        ]
+
+        cur.executemany("""
+            INSERT INTO fixed_costs (name, amount, frequency, month)
+            VALUES (?, ?, ?, ?)
+        """, fixed_cost_items)
+
+        conn.commit()
+
 seed_flavors()
+add_monthly_fixed_costs()
