@@ -2,7 +2,7 @@ from tkinter import *
 from tkinter import ttk
 from tkinter import messagebox, simpledialog
 from datetime import datetime
-from database import get_location_id, conn, cur, get_locations
+from database import get_location_id, conn, cur, get_locations, get_flavor_id, log_inventory, log_sale
 
 class LocationPage(ttk.Frame):
     def __init__(self, parent, controller):
@@ -104,11 +104,31 @@ class LocationPage(ttk.Frame):
             
             for entry in valid_entries:
                 flavor, quantity = entry
+                flavor_id = get_flavor_id(flavor)
                 # convert from number of 5-gallon buckets to number of scoops (assuming 1 bucket = 32 scoops)
                 quantity = quantity * 160 
-                cur.execute("INSERT INTO inventory (location_id, flavor, quantity, timestamp) VALUES (?, ?, ?, ?)",
-                            (location_id, flavor, quantity, timestamp))
+
+                # check to see if the flavor already exists 
+                cur.execute("""
+                    SELECT id, quantity FROM inventory
+                    WHERE location_id = ? AND flavor_id = ?
+                """, (location_id, flavor_id))
+                existing_row = cur.fetchone()
+
+                if existing_row:
+                    inventory_id, existing_quantity = existing_row
+                    new_quantity = existing_quantity + quantity
+                    cur.execute("""
+                        UPDATE inventory
+                        SET quantity = ?, timestamp = ?
+                        WHERE id = ?
+                    """, (new_quantity, timestamp, inventory_id))
+                else:
+                    cur.execute("INSERT INTO inventory (location_id, flavor, flavor_id, quantity, timestamp) VALUES (?, ?, ?, ?, ?)",
+                            (location_id, flavor, flavor_id, quantity, timestamp))
             conn.commit()
+
+            log_inventory(flavor, quantity, f"New inventory for {flavor} at {self.location_name}: {quantity} scoops")
 
             messagebox.showinfo(
                 "Restock Saved",
@@ -204,7 +224,7 @@ class LocationPage(ttk.Frame):
             
             quantity_entry = Entry(row_frame, width=4)
             quantity_entry.grid(row=row_index, column=5, padx=10, pady=5, sticky="w")
-            daily_sales_rows.append((flavor_var, quantity_entry))
+            daily_sales_rows.append((flavor_var, size_var, quantity_entry))
 
         def submit_daily_sales():
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -285,7 +305,7 @@ class LocationPage(ttk.Frame):
                     """, (
                         location_id,
                         entry["flavor_id"],
-                        entry["quantity_sold"],
+                        entry["quantity"],
                         entry["revenue"],
                         timestamp,
                         entry["size"]
