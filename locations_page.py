@@ -1,6 +1,8 @@
 from tkinter import *
 from tkinter import ttk
 from tkinter import messagebox, simpledialog
+from tkinter.scrolledtext import ScrolledText
+from pathlib import Path
 from datetime import datetime
 from database import get_location_id, conn, cur, get_locations, get_flavor_id, log_inventory, log_sale, log_action, get_fixed_costs, get_total_fixed_costs
 
@@ -26,6 +28,9 @@ class LocationPage(ttk.Frame):
         btn_fixed_costs = Button(self, text="View Fixed Costs", command=self.view_fixed_costs)
         btn_fixed_costs.grid(row=2, column=0, padx=10, pady=10)
 
+        btn_history_log = Button(self, text="View History Log", command=self.view_history_log)
+        btn_history_log.grid(row=2, column=2, padx=10, pady=10)
+        
         btn_back = Button(
             self,
             text="Back",
@@ -423,6 +428,7 @@ class LocationPage(ttk.Frame):
         # If inventory is low, alert the user to restock
         print(f"Enter Daily Sales for {self.location_name}")
 
+    #View the fixed costs current locaiton ID, month and shows this information in a table
     def view_fixed_costs(self):
         if not self.location_name:
             messagebox.showerror("Error", "Please select a location first.")
