@@ -34,6 +34,9 @@ def log_sale(Total_price, Quantity, Item):
 def log_inventory(item, change, new_stock):
     logging.info(f"INVENTORY - ITEM: {item}, Change: {change}, New Stock: {new_stock}")
 
+def log_action(action_text):
+    logging.info(action_text)
+
 def seed_flavors():
     flavors = [
         ("Vanilla",),
@@ -88,6 +91,18 @@ def get_total_fixed_costs(location_id, month):
     """, (location_id, month))
     result = cur.fetchone()[0]
     return result if result else 0
+
+#Add get fixed costs display
+def get_fixed_costs(location_id, month=None):
+    if month is None:
+        month = datetime.now().strftime("%Y-%m")
+    cur.excecute (""" 
+        SELECT name, amount, frequency, month
+        FROM fixed costs
+        WHERE location_id = ? AND month = ?
+        ORDER BY name
+    """, (location_id, month))
+    return cur.fetchall()
 
 seed_flavors()
 add_monthly_fixed_costs()
