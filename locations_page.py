@@ -2,7 +2,7 @@ from tkinter import *
 from tkinter import ttk
 from tkinter import messagebox, simpledialog
 from datetime import datetime
-from database import get_location_id, conn, cur, get_locations, get_flavor_id, log_inventory, log_sale
+from database import get_location_id, conn, cur, get_locations, get_flavor_id, log_inventory, log_sale, log_action, get_fixed_costs, get_total_fixed_costs
 
 class LocationPage(ttk.Frame):
     def __init__(self, parent, controller):
@@ -22,6 +22,9 @@ class LocationPage(ttk.Frame):
 
         btn_report = Button(self, text = "Generate Report", command=self.generate_report)
         btn_report.grid(row=1, column=2, padx=10, pady=10)
+
+        btn_fixed_costs = Button(self, text="View Fixed Costs", command=self.view_fixed_costs)
+        btn_fixed_costs.grid(row=2, column=0, padx=10, pady=10)
 
         btn_back = Button(
             self,
@@ -419,7 +422,59 @@ class LocationPage(ttk.Frame):
 
         # If inventory is low, alert the user to restock
         print(f"Enter Daily Sales for {self.location_name}")
-    
+
+    def view_fixed_costs(self):
+        if not self.location_name:
+            messagebox.showerror("Error", "Please select a location first.")
+            return
+
+        location_id = get_location_id(self.location_name)
+        current_month = datetime.now().strftime("%Y-%m")
+
+        fixed_cost_rows = get_fixed_costs(location_id, current_month)
+        total_fixed_costs = get_total_fixed_costs(location_id, current_month)
+
+        fixed_costs_window = Toplevel(self)
+        fixed_costs_window.title(f"Fixed Costs - {self.location_name}")
+        fixed_costs_window.geometry("700x350")
+        fixed_costs_window.grab_set()
+
+        Label(
+            fixed_costs_window,
+            text=f"Fixed Costs for {self.location_name} ({current_month})",
+            font=("Times New Roman", 16, "bold")
+        ).pack(pady=10)
+
+        columns = ("name", "amount", "frequency", "month")
+        tree = ttk.Treeview(fixed_costs_window, columns=columns, show="headings", height=10)
+
+        tree.heading("name", text="Cost Name")
+        tree.heading("amount", text="Amount")
+        tree.heading("frequency", text="Frequency")
+        tree.heading("month", text="Month")
+
+        tree.column("name", width=260)
+        tree.column("amount", width=120, anchor="center")
+        tree.column("frequency", width=120, anchor="center")
+        tree.column("month", width=120, anchor="center")
+
+        for row in fixed_cost_rows:
+            name, amount, frequency, month = row
+            tree.insert("", END, values=(name, f"${amount:,.2f}", frequency, month))
+
+        tree.pack(padx=15, pady=10, fill="both", expand=True)
+
+        Label(
+            fixed_costs_window,
+            text=f"Total Fixed Costs: ${total_fixed_costs:,.2f}",
+            font=("Times New Roman", 14, "bold")
+        ).pack(pady=10)
+
+        Button(fixed_costs_window, text="Close", width=12, command=fixed_costs_window.destroy).pack(pady=5)
+
+        log_action(f"VIEW FIXED COSTS - {self.location_name} for {current_month}")
+
+
     def generate_report(self):
         # Include fixed costs and sales revenue
         # Have monthly income statements for individual locations and the entire company
