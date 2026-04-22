@@ -30,7 +30,7 @@ class LocationPage(ttk.Frame):
 
         btn_history_log = Button(self, text="View History Log", command=self.view_history_log)
         btn_history_log.grid(row=2, column=2, padx=10, pady=10)
-        
+
         btn_back = Button(
             self,
             text="Back",
@@ -479,7 +479,37 @@ class LocationPage(ttk.Frame):
         Button(fixed_costs_window, text="Close", width=12, command=fixed_costs_window.destroy).pack(pady=5)
 
         log_action(f"VIEW FIXED COSTS - {self.location_name} for {current_month}")
+    
+    def view_history_log(self):
+        log_file = Path("daily_log.txt")
 
+        history_window = Toplevel(self)
+        history_window.title(f"History Log - {self.location_name}")
+        history_window.geometry("800x450")
+        history_window.grab_set()
+
+        Label(
+            history_window,
+            text="System History Log",
+            font=("Times New Roman", 16, "bold")
+        ).pack(pady=10)
+
+        log_text = ScrolledText(history_window, wrap=WORD, width=95, height=22)
+        log_text.pack(padx=10, pady=10, fill="both", expand=True)
+
+        if log_file.exists():
+            with open(log_file, "r") as file:
+                contents = file.read().strip()
+                if contents:
+                    log_text.insert(END, contents)
+                else:
+                    log_text.insert(END, "The history log is currently empty.")
+        else:
+            log_text.insert(END, "No log file found yet.")
+
+        log_text.config(state="disabled")
+
+        Button(history_window, text="Close", width=12, command=history_window.destroy).pack(pady=5)
 
     def generate_report(self):
         # Include fixed costs and sales revenue
