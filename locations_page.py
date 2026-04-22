@@ -512,11 +512,66 @@ class LocationPage(ttk.Frame):
         Button(history_window, text="Close", width=12, command=history_window.destroy).pack(pady=5)
 
     def generate_report(self):
+        if not self.location_name:
+            messagebox.showerror("Error", "Please select a location first.")
+            return
+
+        location_id = get_location_id(self.location_name)
+        current_month = datetime.now().strftime("%Y-%m")
+
+        cur.execute("""
+            SELECT SUM(revenue)
+            FROM sales
+            WHERE location_id = ? AND substr(datetime, 1, 7) = ?
+        """, (location_id, current_month))
+
+        total_sales = cur.fetchone()[0] or 0
+
+        total_fixed = get_total_fixed_costs(location_id, current_month)
+        profit = total_sales - total_fixed
+
+        report_window = Toplevel(self)
+        report_window.title(f"Monthly Report - {self.location_name}")
+        report_window.geometry("450x260")
+        report_window.grab_set()
+
+        Label(
+            report_window,
+            text=f"Monthly Report for {self.location_name}",
+            font=("Times New Roman", 16, "bold")
+        ).pack(pady=10)
+
+        report_text = (
+            f"Month: {current_month}\n\n"
+            f"Total Sales Revenue: ${total_sales:,.2f}\n"
+            f"Total Fixed Costs: ${total_fixed:,.2f}\n"
+            f"Estimated Profit: ${profit:,.2f}"
+        )
+
+        Label(
+            report_window,
+            text=report_text,
+            font=("Times New Roman", 13),
+            justify="left"
+        ).pack(pady=20)
+
+        Button(
+            report_window,
+            text="Close",
+            width=12,
+            command=report_window.destroy
+        ).pack(pady=10)
+
+        log_action(
+            f"REPORT GENERATED - {self.location_name} - Month: {current_month}, "
+            f"Sales: ${total_sales:,.2f}, Fixed Costs: ${total_fixed:,.2f}, Profit: ${profit:,.2f}"
+        )
+        
         # Include fixed costs and sales revenue
         # Have monthly income statements for individual locations and the entire company
-        print(f"Generate Report for {self.location_name}")
-        cur.execute("SELECT SUM(total) FROM sales")
-        total_sales = cur.fetchone()[0] or 0
+            #print(f"Generate Report for {self.location_name}")
+            #cur.execute("SELECT SUM(total) FROM sales")
+            #total_sales = cur.fetchone()[0] or 0
 
         # cur.execute("SELECT SUM(amount) FROM fixed_costs")
         # total_fixed = cur.fetchone()[0] or 0
