@@ -98,7 +98,7 @@ def get_fixed_costs(location_id, month=None):
         month = datetime.now().strftime("%Y-%m")
     cur.execute (""" 
         SELECT name, amount, frequency, month
-        FROM fixed costs
+        FROM fixed_costs
         WHERE location_id = ? AND month = ?
         ORDER BY name
     """, (location_id, month))
