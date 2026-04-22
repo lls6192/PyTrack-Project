@@ -96,7 +96,7 @@ def get_total_fixed_costs(location_id, month):
 def get_fixed_costs(location_id, month=None):
     if month is None:
         month = datetime.now().strftime("%Y-%m")
-    cur.excecute (""" 
+    cur.execute (""" 
         SELECT name, amount, frequency, month
         FROM fixed costs
         WHERE location_id = ? AND month = ?
