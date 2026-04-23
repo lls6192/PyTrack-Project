@@ -96,6 +96,14 @@ def add_monthly_fixed_costs():
                 VALUES (?, ?, ?, ?, ?)
             """, fixed_cost_items)
 
+            cur.executemany("""
+                INSERT INTO costs (location_id, category, description, transaction_type, amount, datetime)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, [
+                (location_id, "Fixed Cost", name, "Expense", amount, current_month)
+                for name, amount, frequency, month, location_id in fixed_cost_items
+            ])
+
         conn.commit()
 
 def get_total_fixed_costs(location_id, month):
