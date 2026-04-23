@@ -63,6 +63,11 @@ def get_flavor_id(flavor_name):
     result = cur.fetchone()
     return result[0] if result else None
 
+def get_consumable_id(consumable_name):
+    cur.execute("SELECT id FROM consumables WHERE name = ?", (consumable_name,))
+    result = cur.fetchone()
+    return result[0] if result else None
+
 def add_monthly_fixed_costs():
     current_month = datetime.now().strftime("%Y-%m")
 
