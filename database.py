@@ -48,6 +48,16 @@ def seed_flavors():
     cur.executemany("INSERT OR IGNORE INTO flavors (name) VALUES (?)", flavors)
     conn.commit()
 
+def seed_consumables():
+    consumables = [
+        ("Standard Ice Cream Cone",),
+        ("Waffle Cone",),
+        ("Dish with Spoon",),
+        ("Napkins",)
+    ]
+    cur.executemany("INSERT OR IGNORE INTO consumables (name) VALUES (?)", consumables)
+    conn.commit()
+
 def get_flavor_id(flavor_name):
     cur.execute("SELECT id FROM flavors WHERE name = ?", (flavor_name,))
     result = cur.fetchone()
@@ -105,4 +115,5 @@ def get_fixed_costs(location_id, month=None):
     return cur.fetchall()
 
 seed_flavors()
+seed_consumables()
 add_monthly_fixed_costs()
