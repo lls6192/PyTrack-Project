@@ -450,7 +450,8 @@ class LocationPage(ttk.Frame):
                     "quantity": quantity,
                     "inventory_needed": inventory_use,
                     "revenue": revenue,
-                    "cone_container": cone_container_entry.get(),
+                    "cone_container": cone_container_entry.get(), 
+                    "container_inventory_needed": inventory_container_use
                 })
             
             if not valid_entries:
@@ -487,11 +488,11 @@ class LocationPage(ttk.Frame):
 
                     # subtract from cone/container inventory
                     cur.execute("""
-                        UPDATE flavor_inventory                        
+                        UPDATE consumables_inventory                        
                         SET quantity = quantity - ?
-                        WHERE location_id = ? AND cone_container = ?
+                        WHERE location_id = ? AND consumable = ?
                     """, (
-                        entry["inventory_container_use"],
+                        entry["container_inventory_needed"],
                         location_id,
                         entry["cone_container"]
                     ))
@@ -512,8 +513,8 @@ class LocationPage(ttk.Frame):
 
                     # check updated cone/container inventory level
                     cur.execute("""
-                        SELECT quantity FROM inventory
-                        WHERE location_id = ? AND cone_container = ?
+                        SELECT quantity FROM consumables_inventory
+                        WHERE location_id = ? AND consumable = ?
                     """, (location_id, entry["cone_container"]))
                     updated_container_quantity = cur.fetchone()[0]
                     if updated_container_quantity < 20:
