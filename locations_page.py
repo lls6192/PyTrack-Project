@@ -4,7 +4,7 @@ from tkinter import messagebox, simpledialog
 from tkinter.scrolledtext import ScrolledText
 from pathlib import Path
 from datetime import datetime
-from database import get_location_id, conn, cur, get_locations, get_flavor_id, log_inventory, log_sale, log_action, get_fixed_costs, get_total_fixed_costs
+from database import get_location_id, conn, cur, get_locations, get_flavor_id, log_inventory, log_sale, log_action, get_fixed_costs, get_total_fixed_costs, get_consumable_id
 
 class LocationPage(ttk.Frame):
     def __init__(self, parent, controller):
@@ -16,17 +16,20 @@ class LocationPage(ttk.Frame):
         self.title_label = Label(self, text=f"Store Location Page: {self.location_name}", font=("Times New Roman", 24))
         self.title_label.grid(row=0, column=0, columnspan=3, pady=20)
 
-        btn_restock = Button(self, text = "Restock Inventory", command=self.restock_inventory)
+        btn_restock = Button(self, text = "Restock Flavor Inventory", command=self.restock_flavor_inventory)
         btn_restock.grid(row=1, column=0, padx=10, pady=10)
 
-        btn_daily_sales = Button(self, text = "Enter Daily Sales", command=self.enter_daily_sales)
-        btn_daily_sales.grid(row=1, column=1, padx=10, pady=10)
+        btn_restock_item = Button(self, text="Restock Consumables", command=self.restock_consumables_inventory)
+        btn_restock_item.grid(row=1, column=1, padx=10, pady=10)
 
+
+        btn_daily_sales = Button(self, text = "Enter Daily Sales", command=self.enter_daily_sales)
+        btn_daily_sales.grid(row=1, column=2, padx=10, pady=10)
         btn_report = Button(self, text = "Generate Report", command=self.generate_report)
-        btn_report.grid(row=1, column=2, padx=10, pady=10)
+        btn_report.grid(row=2, column=0, padx=10, pady=10)
 
         btn_fixed_costs = Button(self, text="View Fixed Costs", command=self.view_fixed_costs)
-        btn_fixed_costs.grid(row=2, column=0, padx=10, pady=10)
+        btn_fixed_costs.grid(row=2, column=1, padx=10, pady=10)
 
         btn_history_log = Button(self, text="View History Log", command=self.view_history_log)
         btn_history_log.grid(row=2, column=2, padx=10, pady=10)
@@ -36,12 +39,12 @@ class LocationPage(ttk.Frame):
             text="Back",
             command=lambda: controller.show_frame("StartPage")
         )
-        btn_back.grid(row=2, column=1, pady=20)
+        btn_back.grid(row=3, column=1, pady=20)
 
-    def restock_inventory(self):
+    def restock_flavor_inventory(self):
         # Quantity and Flavor Restocked, and Date/Time
         restock_window = Toplevel(self)
-        restock_window.title("Restock Inventory")
+        restock_window.title("Restock Flavor Inventory")
         restock_window.geometry("500x200")
         restock_window.grab_set()  # Make the restock window modal
 
@@ -118,7 +121,7 @@ class LocationPage(ttk.Frame):
 
                 # check to see if the flavor already exists 
                 cur.execute("""
-                    SELECT id, quantity FROM inventory
+                    SELECT id, quantity FROM flavor_inventory
                     WHERE location_id = ? AND flavor_id = ?
                 """, (location_id, flavor_id))
                 existing_row = cur.fetchone()
@@ -127,12 +130,12 @@ class LocationPage(ttk.Frame):
                     inventory_id, existing_quantity = existing_row
                     new_quantity = existing_quantity + quantity
                     cur.execute("""
-                        UPDATE inventory
+                        UPDATE flavor_inventory
                         SET quantity = ?, timestamp = ?
                         WHERE id = ?
                     """, (new_quantity, timestamp, inventory_id))
                 else:
-                    cur.execute("INSERT INTO inventory (location_id, flavor, flavor_id, quantity, timestamp) VALUES (?, ?, ?, ?, ?)",
+                    cur.execute("INSERT INTO flavor_inventory (location_id, flavor, flavor_id, quantity, timestamp) VALUES (?, ?, ?, ?, ?)",
                             (location_id, flavor, flavor_id, quantity, timestamp))
             conn.commit()
 
@@ -158,11 +161,134 @@ class LocationPage(ttk.Frame):
         cancel_button = Button(button_frame, text="Cancel", width=12, command=restock_window.destroy)
         cancel_button.grid(row=0, column=1, padx=10)
 
+    def restock_consumables_inventory(self):
+        restock_consumables_window = Toplevel(self)
+        restock_consumables_window.title("Restock Consumables Inventory")
+        restock_consumables_window.geometry("600x200")
+        restock_consumables_window.grab_set()
+
+        consumables_options = [
+            "Standard Ice Cream Cone",
+            "Waffle Cone",
+            "Dish with Spoon",
+            "Napkins"
+        ]
+
+        rows_frame = Frame(restock_consumables_window)
+        rows_frame.grid(row=1, column=0, columnspan=4, padx=10, pady=5, sticky="w")
+
+        restock_consumables_rows = []
+
+        def add_restock_consumables_row():
+            row_index = len(restock_consumables_rows)
+            consumable_var = StringVar()
+            consumable_dropdown = ttk.Combobox(
+                rows_frame,
+                textvariable=consumable_var,
+                values=consumables_options,
+                state="readonly",
+                width=15
+            )
+            consumable_dropdown.grid(row=row_index, column=1, padx=10, pady=5, sticky="w")
+            consumable_dropdown.set("Select a consumable")
+
+            consumable_label = Label(rows_frame, text="Consumable Restocked:")
+            consumable_label.grid(row=row_index, column=0, pady=10, sticky="w")
+
+            quantity_label = Label(rows_frame, text="Quantity Restocked:")
+            quantity_label.grid(row=row_index, column=2, padx=10, pady=5, sticky="w")
+
+            quantity_entry = Entry(rows_frame, width=4)
+            quantity_entry.grid(row=row_index, column=3, padx=10, pady=5, sticky="w")
+
+            restock_consumables_rows.append((consumable_var, quantity_entry))
+        
+        def submit_consumables_restock():
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            location_id = get_location_id(self.location_name)
+
+            valid_entries = []
+
+            for consumable_var, quantity_entry in restock_consumables_rows:
+                consumable = consumable_var.get().strip()
+                quantity_text = quantity_entry.get().strip()
+
+                if consumable == "Select a consumable":
+                    messagebox.showerror("Error", "Please select a consumable for all entries.")
+                    return
+
+                if quantity_text == "":
+                    messagebox.showerror("Error", "Quantity cannot be empty.")
+                    return
+
+                if not quantity_text.isdigit():
+                    messagebox.showerror("Error", "Quantity must be a whole number.")
+                    return
+
+                quantity = int(quantity_text)
+                valid_entries.append((consumable, quantity))
+            
+            if not valid_entries:
+                messagebox.showerror("Error", "Please add at least one consumable to restock.")
+                return
+            
+            for entry in valid_entries:
+                consumable, quantity = entry
+                consumable_id = get_consumable_id(consumable)
+
+                # if standard ice cream cone, waffle cone, or dish with spoon convert each restock has 100 count
+                if consumable in ["Standard Ice Cream Cone", "Waffle Cone", "Dish with Spoon"]:
+                    quantity = quantity * 100
+                else:
+                    quantity = quantity * 10000 # for napkins, each restock has 10,000 count
+
+                # check to see if the consumable already exists 
+                cur.execute("""
+                    SELECT id, quantity FROM consumables_inventory
+                    WHERE location_id = ? AND consumable_id = ?
+                """, (location_id, consumable_id))
+                existing_row = cur.fetchone()
+
+                if existing_row:
+                    inventory_id, existing_quantity = existing_row
+                    new_quantity = existing_quantity + quantity
+                    cur.execute("""
+                        UPDATE consumables_inventory
+                        SET quantity = ?, timestamp = ?
+                        WHERE id = ?
+                    """, (new_quantity, timestamp, inventory_id))
+                else:
+                    cur.execute("INSERT INTO consumables_inventory (location_id, consumable, consumable_id, quantity, timestamp) VALUES (?, ?, ?, ?, ?)",
+                            (location_id, consumable, consumable_id, quantity, timestamp))
+            conn.commit()
+
+            log_inventory(consumable, quantity, f"New inventory for {consumable} at {self.location_name}: {quantity} items")
+
+            messagebox.showinfo(
+                "Restock Saved",
+                f"Consumables inventory restocked for {self.location_name}"
+            )
+            restock_consumables_window.destroy()
+        
+        add_restock_consumables_row()  # Add the first row by default
+
+        add_button = Button(restock_consumables_window, text="Add Another Consumable", command=add_restock_consumables_row)
+        add_button.grid(row=2, column=0, columnspan=4, pady=10)
+
+        # Buttons frame
+        button_frame = Frame(restock_consumables_window)
+        button_frame.grid(row=3, column=0, columnspan=4, pady=20)
+        ok_button = Button(button_frame, text="OK", width=12, command=submit_consumables_restock)
+        ok_button.grid(row=0, column=0, padx=10)
+
+        cancel_button = Button(button_frame, text="Cancel", width=12, command=restock_consumables_window.destroy)
+        cancel_button.grid(row=0, column=1, padx=10)
+
     def enter_daily_sales(self):
         # Flavors and Quantitiies Sold
         daily_sales_window = Toplevel(self)
         daily_sales_window.title("Enter Daily Sales")
-        daily_sales_window.geometry("700x200")
+        daily_sales_window.geometry("900x200")
         daily_sales_window.grab_set()  # Make the daily sales window modal
 
         flavor_options = [
@@ -253,7 +379,7 @@ class LocationPage(ttk.Frame):
 
             valid_entries = []
 
-            for flavor_var, size_var, quantity_entry, cone_container_entry, cone_container_quantity_entry in daily_sales_rows:
+            for flavor_var, size_var, quantity_entry, cone_container_entry in daily_sales_rows:
 
                 flavor = flavor_var.get().strip()
                 quantity_text = quantity_entry.get().strip()
@@ -296,7 +422,7 @@ class LocationPage(ttk.Frame):
                 inventory_container_use = quantity
 
                 # check current inventory
-                cur.execute("SELECT quantity FROM inventory WHERE location_id = ? AND flavor_id = ?", (location_id, flavor_id))
+                cur.execute("SELECT quantity FROM flavor_inventory WHERE location_id = ? AND flavor_id = ?", (location_id, flavor_id))
                 inventory_row = cur.fetchone()
 
                 current_inventory = inventory_row[0] if inventory_row else 0
@@ -350,7 +476,7 @@ class LocationPage(ttk.Frame):
 
                     # subtract from flavor inventory
                     cur.execute("""
-                        UPDATE inventory
+                        UPDATE flavor_inventory
                         SET quantity = quantity - ?
                         WHERE location_id = ? AND flavor_id = ?
                         """, (
@@ -361,7 +487,7 @@ class LocationPage(ttk.Frame):
 
                     # subtract from cone/container inventory
                     cur.execute("""
-                        UPDATE inventory                        
+                        UPDATE flavor_inventory                        
                         SET quantity = quantity - ?
                         WHERE location_id = ? AND cone_container = ?
                     """, (
@@ -372,7 +498,7 @@ class LocationPage(ttk.Frame):
 
                     # check updated flavor inventory level
                     cur.execute("""
-                        SELECT quantity FROM inventory
+                        SELECT quantity FROM flavor_inventory
                         WHERE location_id = ? AND flavor_id = ?
                     """, (location_id, entry["flavor_id"]))
 
