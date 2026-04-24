@@ -3,6 +3,7 @@ from tkinter import ttk
 from tkinter import messagebox, simpledialog
 from locations_page import LocationPage
 from database import get_location_id, conn, cur, get_locations
+from datetime import datetime
 
 class PyTrackApp(Tk):
     def __init__(self):
@@ -73,9 +74,93 @@ class StartPage(ttk.Frame):
 
     def generate_report(self):
         # Code to generate a report for the whole company
-        messagebox.showinfo("Generate Report", "Generating company report...")
+        #messagebox.showinfo("Generate Report", "Generating company report...")
         # Use database and pandas dataframe to generate the report
-        #TODO: Implement pandas dataframe to generate report
+        current_month = datetime.now().strftime("%Y-%m")
+
+        # Total company revenue
+        cur.execute("""
+            SELECT SUM(amount)
+            FROM costs
+            WHERE transaction_type = 'Revenue'
+            AND substr(datetime, 1, 7) = ?
+        """, (current_month,))
+        total_revenue = cur.fetchone()[0] or 0
+
+        # Total company expenses
+        cur.execute("""
+            SELECT SUM(amount)
+            FROM costs
+            WHERE transaction_type = 'Expense'
+            AND substr(datetime, 1, 7) = ?
+        """, (current_month,))
+        total_expenses = cur.fetchone()[0] or 0
+
+        net_income = total_revenue - total_expenses
+
+        # Expense breakdown
+        cur.execute("""
+            SELECT category, SUM(amount)
+            FROM costs
+            WHERE transaction_type = 'Expense'
+            AND substr(datetime, 1, 7) = ?
+            GROUP BY category
+        """, (current_month,))
+        expense_rows = cur.fetchall()
+
+        # Revenue by location
+        cur.execute("""
+            SELECT locations.name, SUM(costs.amount)
+            FROM costs
+            JOIN locations ON costs.location_id = locations.id
+            WHERE costs.transaction_type = 'Revenue'
+            AND substr(costs.datetime, 1, 7) = ?
+            GROUP BY locations.name
+        """, (current_month,))
+        location_revenue_rows = cur.fetchall()
+
+        report_window = Toplevel(self)
+        report_window.title("Company Monthly Income Statement")
+        report_window.geometry("600x500")
+        report_window.grab_set()
+
+        Label(
+            report_window,
+            text="Company Monthly Income Statement",
+            font=("Times New Roman", 16, "bold")
+        ).pack(pady=10)
+
+        report_text = (
+            f"Month: {current_month}\n\n"
+            f"Total Sales Revenue: ${total_revenue:,.2f}\n\n"
+            f"Expenses:\n"
+        )
+
+        for category, amount in expense_rows:
+            report_text += f"  {category}: ${amount:,.2f}\n"
+
+        report_text += (
+            f"\nTotal Expenses: ${total_expenses:,.2f}\n"
+            f"Net Income: ${net_income:,.2f}\n\n"
+            f"Revenue by Location:\n"
+        )
+
+        for location_name, revenue in location_revenue_rows:
+            report_text += f"  {location_name}: ${revenue:,.2f}\n"
+
+        Label(
+            report_window,
+            text=report_text,
+            font=("Times New Roman", 13),
+            justify="left"
+        ).pack(pady=20)
+
+        Button(
+            report_window,
+            text="Close",
+            width=12,
+            command=report_window.destroy
+        ).pack(pady=10)
 
     def __init__(self, parent, controller):
         super().__init__(parent)
@@ -119,7 +204,7 @@ class StartPage(ttk.Frame):
 
         #------------------------------------------------------------------
         # Generate Report button for whole company
-        btn_generate_report = Button(self, text="Generate Company Report", command=self.generate_report)
+        btn_generate_report = Button(self, text="Generate Company Monthly Income Statement", command=self.generate_report)
         btn_generate_report.grid(row=4, column=0, columnspan=2, pady=20)
 
 
