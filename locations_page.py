@@ -323,7 +323,7 @@ class LocationPage(ttk.Frame):
                 timestamp
             ))
             conn.commit()
-            
+
             messagebox.showinfo(
                 "Restock Saved",
                 f"Consumables inventory restocked for {self.location_name}"
@@ -570,6 +570,26 @@ class LocationPage(ttk.Frame):
                         entry["cone_container"]
                     ))
 
+                    #subtract napkins (2 per order)
+                    cur.execute("""
+                        UPDATE consumables_inventory
+                        SET quantity = quantity - ?
+                        WHERE location_id = ? AND consumable = '?'
+                    """, (
+                        entry["quantity"] * 2,
+                        location_id,
+                        "Napkins"
+                    ))
+
+                    # check napkins inventory
+                    napkin_qty = cur.fetchone()[0]
+
+                    if napkin_qty < 50:
+                        messagebox.showwarning(
+                            "Low Inventory Warning",
+                            f"Inventory for napkins is low ({napkin_qty} remaining). Please restock soon."
+                        )
+
                     # check updated flavor inventory level
                     cur.execute("""
                         SELECT quantity FROM flavor_inventory
@@ -578,6 +598,7 @@ class LocationPage(ttk.Frame):
 
                     updated_quantity = cur.fetchone()[0]
 
+                    # check flavor inventory
                     if updated_quantity < 20:
                         messagebox.showwarning(
                             "Low Inventory Warning",
@@ -594,7 +615,7 @@ class LocationPage(ttk.Frame):
                         messagebox.showwarning(
                             "Low Inventory Warning",
                             f"Inventory for cone/container '{entry['cone_container']}' is low ({updated_container_quantity} remaining). Please restock soon."
-                        )
+                        )                    
 
                 conn.commit()
 
