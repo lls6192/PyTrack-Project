@@ -5,6 +5,8 @@ from tkinter.scrolledtext import ScrolledText
 from pathlib import Path
 from datetime import datetime
 from database import get_location_id, conn, cur, get_locations, get_flavor_id, log_inventory, log_sale, log_action, get_fixed_costs, get_total_fixed_costs, get_consumable_id
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 # cost per 5-gal bucket
 flavor_costs = {
@@ -54,6 +56,9 @@ class LocationPage(ttk.Frame):
 
         btn_history_log = Button(self, text="View History Log", command=self.view_history_log)
         btn_history_log.grid(row=3, column=1, padx=10, pady=10)
+
+        btn_flavor_trends = Button(self, text = "Flavor Sales Trends", command = self.show_flavor_trends)
+        btn_flavor_trends.grid(row=3, column=2, padx=10, pady=10)
 
         btn_back = Button(
             self,
@@ -903,6 +908,63 @@ class LocationPage(ttk.Frame):
         Button(sales_window, text="Close", width=12, command=sales_window.destroy).pack(pady=5)
 
         log_action(f"VIEW DAILY SALES - {self.location_name} for {current_month}")
+
+    def show_flavor_trends(self):
+        if not self.location_name:
+            messagebox.showerror("Error", "Please select a location first.")
+            return
+
+        location_id = get_location_id(self.location_name)
+        current_month = datetime.now().strftime("%Y-%m")
+
+        cur.execute("""
+            SELECT flavors.name, SUM(sales.quantity)
+            FROM sales
+            JOIN flavors ON sales.flavor_id = flavors.id
+            WHERE sales.location_id = ? 
+            AND substr(sales.datetime, 1, 7) = ?
+            GROUP BY flavors.name
+            ORDER BY SUM(sales.quantity) DESC
+        """, (location_id, current_month))
+
+        flavor_trends_rows = cur.fetchall()
+
+        if not flavor_trends_rows:
+            messagebox.showinfo("No Sales Data", "No sales data available to show flavor trends.")
+            return
+
+        trends_window = Toplevel(self)
+        trends_window.title(f"Flavor Sales Trends - {self.location_name}")
+        trends_window.geometry("750x500")
+        trends_window.grab_set()
+
+        Label(
+            trends_window,
+            text=f"Flavor Sales Trends for {self.location_name}",
+            font=("Times New Roman", 16, "bold")
+        ).pack(pady=5)
+
+        flavors = [row[0] for row in flavor_trends_rows]
+        quantities = [row[1] for row in flavor_trends_rows]
+
+        figure = Figure(figsize=(5, 3), dpi=100)
+        plot = figure.add_subplot(111)
+
+        plot.bar(flavors, quantities)
+        plot.set_xlabel("Flavor", fontsize = 10)
+        plot.set_ylabel("Total Quantity Sold", fontsize = 10)
+        plot.set_title(f"Flavor Sales Trends for {self.location_name}", fontsize = 12)
+        plot.tick_params(axis='x', rotation=30)
+
+        figure.tight_layout()
+
+        canvas = FigureCanvasTkAgg(figure, master = trends_window)
+        canvas.draw()
+        canvas.get_tk_widget().pack(padx=15, pady=10, fill="both", expand=True)
+
+        Button(trends_window, text="Close", width=12, command=trends_window.destroy).pack(pady=10)
+
+        log_action(f"VIEW FLAVOR SALES TRENDS - {self.location_name} for {current_month}")
 
     def set_location(self, location_name):
         self.location_name = location_name
