@@ -6,3 +6,15 @@
 2026-04-23 20:36:30,273 - INVENTORY - ITEM: Chocolate, Change: 160, New Stock: New inventory for Chocolate at Rochester: 160 scoops
 2026-04-23 20:37:45,473 - INVENTORY - ITEM: Chocolate, Change: 160, New Stock: New inventory for Chocolate at Rochester: 160 scoops
 2026-04-23 20:38:38,739 - INVENTORY - ITEM: Napkins, Change: 10000, New Stock: New inventory for Napkins at Rochester: 10000 items
+2026-04-24 11:13:38,715 - VIEW FIXED COSTS - Boston for 2026-04
+2026-04-24 12:35:28,962 - REPORT GENERATED - Rochester - Month: 2026-04, Sales: $0.00, Fixed Costs: $18,250.00, Profit: $-18,250.00
+2026-04-24 12:44:17,440 - INCOME STATEMENT GENERATED - Rochester - Month: 2026-04, Sales: $0.00, Expenses: $18,287.30, Net Income: $-18,287.30
+2026-04-24 12:44:28,692 - INCOME STATEMENT GENERATED - Rochester - Month: 2026-04, Sales: $0.00, Expenses: $18,287.30, Net Income: $-18,287.30
+2026-04-24 12:44:40,656 - VIEW FIXED COSTS - Rochester for 2026-04
+2026-04-24 12:44:42,758 - INCOME STATEMENT GENERATED - Rochester - Month: 2026-04, Sales: $0.00, Expenses: $18,287.30, Net Income: $-18,287.30
+2026-04-24 12:44:47,057 - INCOME STATEMENT GENERATED - Rochester - Month: 2026-04, Sales: $0.00, Expenses: $18,287.30, Net Income: $-18,287.30
+2026-04-24 12:44:51,692 - INCOME STATEMENT GENERATED - Rochester - Month: 2026-04, Sales: $0.00, Expenses: $18,287.30, Net Income: $-18,287.30
+2026-04-24 12:50:22,180 - VIEW DAILY SALES - Rochester for 2026-04
+2026-04-24 12:51:02,929 - VIEW DAILY SALES - Rochester for 2026-04
+2026-04-24 12:56:49,807 - SALE - ITEM:Kiddie Chocolate, Qty: 1, Total: $3.0
+2026-04-24 12:56:53,093 - VIEW DAILY SALES - Rochester for 2026-04

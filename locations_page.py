@@ -43,21 +43,24 @@ class LocationPage(ttk.Frame):
 
         btn_daily_sales = Button(self, text = "Enter Daily Sales", command=self.enter_daily_sales)
         btn_daily_sales.grid(row=1, column=2, padx=10, pady=10)
-        btn_report = Button(self, text = "Generate Report", command=self.generate_report)
+        btn_report = Button(self, text = "Generate Monthly Income Statement", command=self.generate_report)
         btn_report.grid(row=2, column=0, padx=10, pady=10)
 
         btn_fixed_costs = Button(self, text="View Fixed Costs", command=self.view_fixed_costs)
         btn_fixed_costs.grid(row=2, column=1, padx=10, pady=10)
 
+        btn_daily_sales_view = Button(self, text="View Daily Sales", command=self.view_daily_sales)
+        btn_daily_sales_view.grid(row=2, column=2, padx=10, pady=10)
+
         btn_history_log = Button(self, text="View History Log", command=self.view_history_log)
-        btn_history_log.grid(row=2, column=2, padx=10, pady=10)
+        btn_history_log.grid(row=3, column=1, padx=10, pady=10)
 
         btn_back = Button(
             self,
             text="Back",
             command=lambda: controller.show_frame("StartPage")
         )
-        btn_back.grid(row=3, column=1, pady=20)
+        btn_back.grid(row=4, column=1, pady=20)
 
     def restock_flavor_inventory(self):
         # Quantity and Flavor Restocked, and Date/Time
@@ -492,7 +495,7 @@ class LocationPage(ttk.Frame):
                     return
                 
                 # check inventory for cones/containers
-                cur.execute("SELECT quantity FROM inventory WHERE location_id = ? AND cone_container = ?", (location_id, cone_container_entry.get()))
+                cur.execute("SELECT quantity FROM consumables_inventory WHERE location_id = ? AND consumable = ?", (location_id, cone_container_entry.get()))
                 container_inventory_row = cur.fetchone() 
 
                 current_container_inventory = container_inventory_row[0] if container_inventory_row else 0
@@ -523,7 +526,7 @@ class LocationPage(ttk.Frame):
                 for entry in valid_entries:
                     # insert into sales table
                     cur.execute("""
-                    INSERT INTO sales (location_id, flavor_id, quantity, revenue, datetime, size, cone_container)
+                    INSERT INTO sales (location_id, flavor_id, quantity, revenue, datetime, size, container)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
                     """, (
                         location_id,
@@ -574,7 +577,7 @@ class LocationPage(ttk.Frame):
                     cur.execute("""
                         UPDATE consumables_inventory
                         SET quantity = quantity - ?
-                        WHERE location_id = ? AND consumable = '?'
+                        WHERE location_id = ? AND consumable = ?
                     """, (
                         entry["quantity"] * 2,
                         location_id,
@@ -582,14 +585,24 @@ class LocationPage(ttk.Frame):
                     ))
 
                     # check napkins inventory
-                    napkin_qty = cur.fetchone()[0]
+                    cur.execute("""
+                        SELECT quantity
+                        FROM consumables_inventory
+                        WHERE location_id = ? AND consumable = ?
+                    """, (
+    location_id,
+    "Napkins"
+))
+
+                    napkin_row = cur.fetchone()
+                    napkin_qty = napkin_row[0] if napkin_row else 0
 
                     if napkin_qty < 50:
                         messagebox.showwarning(
-                            "Low Inventory Warning",
-                            f"Inventory for napkins is low ({napkin_qty} remaining). Please restock soon."
-                        )
-
+                        "Low Inventory Warning",
+                        f"Inventory for napkins is low ({napkin_qty} remaining). Please restock soon."
+                    )
+                        
                     # check updated flavor inventory level
                     cur.execute("""
                         SELECT quantity FROM flavor_inventory
@@ -740,20 +753,42 @@ class LocationPage(ttk.Frame):
         location_id = get_location_id(self.location_name)
         current_month = datetime.now().strftime("%Y-%m")
 
+        # sales revenue from costs table
         cur.execute("""
-            SELECT SUM(revenue)
-            FROM sales
-            WHERE location_id = ? AND substr(datetime, 1, 7) = ?
+            SELECT SUM(amount)
+            FROM costs
+            WHERE location_id = ?
+            AND transaction_type = 'Revenue'
+            AND substr(datetime, 1, 7) = ?
         """, (location_id, current_month))
+        total_revenue = cur.fetchone()[0] or 0
 
-        total_sales = cur.fetchone()[0] or 0
+        # all expenses from costs table
+        cur.execute("""
+            SELECT SUM(amount)
+            FROM costs
+            WHERE location_id = ?
+            AND substr(datetime, 1, 7) = ?
+            AND transaction_type = 'Expense'
+        """, (location_id, current_month))
+        total_expenses = cur.fetchone()[0] or 0
 
-        total_fixed = get_total_fixed_costs(location_id, current_month)
-        profit = total_sales - total_fixed
+        net_income = total_revenue - total_expenses
+
+        # expense breakdown by category
+        cur.execute("""
+            SELECT category, SUM(amount)
+            FROM costs
+            WHERE location_id = ?
+            AND transaction_type = 'Expense'
+            AND substr(datetime, 1, 7) = ?
+            GROUP BY category
+        """, (location_id, current_month))
+        expense_rows = cur.fetchall()
 
         report_window = Toplevel(self)
         report_window.title(f"Monthly Report - {self.location_name}")
-        report_window.geometry("450x260")
+        report_window.geometry("550x400")
         report_window.grab_set()
 
         Label(
@@ -764,9 +799,16 @@ class LocationPage(ttk.Frame):
 
         report_text = (
             f"Month: {current_month}\n\n"
-            f"Total Sales Revenue: ${total_sales:,.2f}\n"
-            f"Total Fixed Costs: ${total_fixed:,.2f}\n"
-            f"Estimated Profit: ${profit:,.2f}"
+            f"Total Sales Revenue: ${total_revenue:,.2f}\n"
+            f"Expenses:\n"
+        )
+
+        for category, amount in expense_rows:
+            report_text += f"  - {category}: ${amount:,.2f}\n"
+        
+        report_text += (
+            f"\nTotal Expenses: ${total_expenses:,.2f}\n"
+            f"\nNet Income: ${net_income:,.2f}"
         )
 
         Label(
@@ -784,24 +826,83 @@ class LocationPage(ttk.Frame):
         ).pack(pady=10)
 
         log_action(
-            f"REPORT GENERATED - {self.location_name} - Month: {current_month}, "
-            f"Sales: ${total_sales:,.2f}, Fixed Costs: ${total_fixed:,.2f}, Profit: ${profit:,.2f}"
+            f"INCOME STATEMENT GENERATED - {self.location_name} - Month: {current_month}, "
+            f"Sales: ${total_revenue:,.2f}, Expenses: ${total_expenses:,.2f}, Net Income: ${net_income:,.2f}"
         )
-        
-        # Include fixed costs and sales revenue
-        # Have monthly income statements for individual locations and the entire company
-            #print(f"Generate Report for {self.location_name}")
-            #cur.execute("SELECT SUM(total) FROM sales")
-            #total_sales = cur.fetchone()[0] or 0
 
-        # cur.execute("SELECT SUM(amount) FROM fixed_costs")
-        # total_fixed = cur.fetchone()[0] or 0
+    def view_daily_sales(self):
+        if not self.location_name:
+            messagebox.showerror("Error", "Please select a location first.")
+            return
 
-        # profit = total_sales - total_fixed
-        # print("Total Sales: ${total_sales}")
-        # print("Fixed Costs: ${total_fixed}")
-        # print("Profit: ${profit}")
-    
+        location_id = get_location_id(self.location_name)
+        current_month = datetime.now().strftime("%Y-%m")
+
+        cur.execute("""
+            SELECT sales.datetime, flavors.name, sales.size, sales.quantity, 
+                sales.container, sales.revenue
+            FROM sales
+            JOIN flavors ON sales.flavor_id = flavors.id
+            WHERE sales.location_id = ?
+            AND substr(sales.datetime, 1, 7) = ?
+            ORDER BY sales.datetime DESC
+        """, (location_id, current_month))
+
+        sales_rows = cur.fetchall()
+
+        sales_window = Toplevel(self)
+        sales_window.title(f"Daily Sales - {self.location_name}")
+        sales_window.geometry("850x400")
+        sales_window.grab_set()
+
+        Label(
+            sales_window,
+            text=f"Daily Sales for {self.location_name} ({current_month})",
+            font=("Times New Roman", 16, "bold")
+        ).pack(pady=10)
+
+        columns = ("datetime", "flavor", "size", "quantity", "cone_container", "revenue")
+        tree = ttk.Treeview(sales_window, columns=columns, show="headings", height=12)
+
+        tree.heading("datetime", text="Date/Time")
+        tree.heading("flavor", text="Flavor")
+        tree.heading("size", text="Size")
+        tree.heading("quantity", text="Qty")
+        tree.heading("cone_container", text="Cone/Dish")
+        tree.heading("revenue", text="Revenue")
+
+        tree.column("datetime", width=160)
+        tree.column("flavor", width=150)
+        tree.column("size", width=90, anchor="center")
+        tree.column("quantity", width=70, anchor="center")
+        tree.column("cone_container", width=180)
+        tree.column("revenue", width=100, anchor="center")
+
+        total_revenue = 0
+
+        for row in sales_rows:
+            sale_datetime, flavor, size, quantity, cone_container, revenue = row
+            total_revenue += revenue
+            tree.insert("", END, values=(
+                sale_datetime,
+                flavor,
+                size,
+                quantity,
+                cone_container,
+                f"${revenue:,.2f}"
+            ))
+
+        tree.pack(padx=15, pady=10, fill="both", expand=True)
+
+        Label(
+            sales_window,
+            text=f"Total Sales Revenue: ${total_revenue:,.2f}",
+        font=("Times New Roman", 14, "bold")
+        ).pack(pady=10)
+
+        Button(sales_window, text="Close", width=12, command=sales_window.destroy).pack(pady=5)
+
+        log_action(f"VIEW DAILY SALES - {self.location_name} for {current_month}")
 
     def set_location(self, location_name):
         self.location_name = location_name
