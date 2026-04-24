@@ -6,6 +6,24 @@ from pathlib import Path
 from datetime import datetime
 from database import get_location_id, conn, cur, get_locations, get_flavor_id, log_inventory, log_sale, log_action, get_fixed_costs, get_total_fixed_costs, get_consumable_id
 
+# cost per 5-gal bucket
+flavor_costs = {
+    "Vanilla": 1.80,
+    "Chocolate": 1.80,
+    "Cookies & Cream": 1.90,
+    "Neapolitan": 1.85,
+    "Cookie Dough": 1.95
+}
+
+# cost per BOX (100 count)
+consumable_costs = {
+    "Standard Ice Cream Cone": 5.00,
+    "Waffle Cone": 6.00,
+    "Dish with Spoon": 4.50
+}
+
+napkin_cost_per_box = 20
+
 class LocationPage(ttk.Frame):
     def __init__(self, parent, controller):
         super().__init__(parent)
@@ -85,6 +103,8 @@ class LocationPage(ttk.Frame):
             restock_rows.append((flavor_var, quantity_entry))
         
         def submit_restock():
+            total_cost = 0
+
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             location_id = get_location_id(self.location_name)
 
@@ -115,6 +135,10 @@ class LocationPage(ttk.Frame):
             
             for entry in valid_entries:
                 flavor, quantity = entry
+
+                cost_per_bucket = flavor_costs.get(flavor, 0)
+                total_cost += quantity * cost_per_bucket
+
                 flavor_id = get_flavor_id(flavor)
                 # convert from number of 5-gallon buckets to number of scoops (assuming 1 bucket = 32 scoops)
                 quantity = quantity * 160 
@@ -137,6 +161,21 @@ class LocationPage(ttk.Frame):
                 else:
                     cur.execute("INSERT INTO flavor_inventory (location_id, flavor, flavor_id, quantity, timestamp) VALUES (?, ?, ?, ?, ?)",
                             (location_id, flavor, flavor_id, quantity, timestamp))
+            conn.commit()
+
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+            cur.execute("""
+                INSERT INTO costs (location_id, category, description, transaction_type, amount, datetime)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (
+                location_id,
+                "Inventory",
+                "Flavor Restock",
+                "Expense",
+                total_cost,
+                timestamp
+            ))
             conn.commit()
 
             log_inventory(flavor, quantity, f"New inventory for {flavor} at {self.location_name}: {quantity} scoops")
@@ -207,6 +246,8 @@ class LocationPage(ttk.Frame):
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             location_id = get_location_id(self.location_name)
 
+            total_cost = 0
+
             valid_entries = []
 
             for consumable_var, quantity_entry in restock_consumables_rows:
@@ -236,6 +277,12 @@ class LocationPage(ttk.Frame):
                 consumable, quantity = entry
                 consumable_id = get_consumable_id(consumable)
 
+                if consumable == "Napkins":
+                    total_cost += quantity * 20
+                else:
+                    cost_per_box = consumable_costs.get(consumable, 0)
+                    total_cost += quantity * cost_per_box
+
                 # if standard ice cream cone, waffle cone, or dish with spoon convert each restock has 100 count
                 if consumable in ["Standard Ice Cream Cone", "Waffle Cone", "Dish with Spoon"]:
                     quantity = quantity * 100
@@ -264,6 +311,19 @@ class LocationPage(ttk.Frame):
 
             log_inventory(consumable, quantity, f"New inventory for {consumable} at {self.location_name}: {quantity} items")
 
+            cur.execute("""
+                INSERT INTO costs (location_id, category, description, transaction_type, amount, datetime)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (
+                location_id,
+                "Inventory",
+                "Consumables Restock",
+                "Expense",
+                total_cost,
+                timestamp
+            ))
+            conn.commit()
+            
             messagebox.showinfo(
                 "Restock Saved",
                 f"Consumables inventory restocked for {self.location_name}"
@@ -473,6 +533,19 @@ class LocationPage(ttk.Frame):
                         timestamp,
                         entry["size"],
                         entry["cone_container"]
+                    ))
+
+                    # insert sales into costs table as revenue
+                    cur.execute("""
+                        INSERT INTO costs (location_id, category, description, transaction_type, amount, datetime)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    """, (
+                        location_id,
+                        "Sales",
+                        f"{entry['quantity']} {entry['size']} {entry['flavor']} sold",
+                        "Revenue",
+                        entry["revenue"],
+                        timestamp
                     ))
 
                     # subtract from flavor inventory
