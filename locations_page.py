@@ -60,12 +60,15 @@ class LocationPage(ttk.Frame):
         btn_flavor_trends = Button(self, text = "Flavor Sales Trends", command = self.show_flavor_trends)
         btn_flavor_trends.grid(row=3, column=2, padx=10, pady=10)
 
+        btn_inventory = Button(self, text="View Inventory Levels", command=self.view_inventory)
+        btn_inventory.grid(row=4, column=1, padx=10, pady=10)
+
         btn_back = Button(
             self,
             text="Back",
             command=lambda: controller.show_frame("StartPage")
         )
-        btn_back.grid(row=4, column=1, pady=20)
+        btn_back.grid(row=5, column=1, pady=20)
 
     def restock_flavor_inventory(self):
         # Quantity and Flavor Restocked, and Date/Time
@@ -965,6 +968,64 @@ class LocationPage(ttk.Frame):
         Button(trends_window, text="Close", width=12, command=trends_window.destroy).pack(pady=10)
 
         log_action(f"VIEW FLAVOR SALES TRENDS - {self.location_name} for {current_month}")
+
+    def view_inventory(self):
+        if not self.location_name:
+            messagebox.showerror("Error", "Please select a location first.")
+            return
+
+        location_id = get_location_id(self.location_name)
+        inventory_window = Toplevel(self)
+        inventory_window.title(f"Inventory - {self.location_name}")
+        inventory_window.geometry("700x400")
+        inventory_window.grab_set()
+
+        Label(
+            inventory_window,
+            text=f"Inventory for {self.location_name}",
+            font=("Times New Roman", 16, "bold")
+        ).pack(pady=10)
+
+        columns = ("item", "quantity")
+        tree = ttk.Treeview(inventory_window, columns=columns, show="headings", height=15)
+
+        tree.heading("item", text="Item")
+        tree.heading("quantity", text="Quantity")
+
+        tree.column("item", width=350)
+        tree.column("quantity", width=150, anchor="center")
+
+        # Flavor Inventory
+        cur.execute("""
+            SELECT flavors.name, flavor_inventory.quantity
+            FROM flavor_inventory
+            JOIN flavors ON flavor_inventory.flavor_id = flavors.id
+            WHERE flavor_inventory.location_id = ?
+        """, (location_id,))
+
+        for name, qty in cur.fetchall():
+            tree.insert("", END, values=(f"{name} (scoops)", qty))
+
+        # Consumables Inventory
+        cur.execute("""
+            SELECT consumable, quantity
+            FROM consumables_inventory
+            WHERE location_id = ?
+        """, (location_id,))
+
+        for name, qty in cur.fetchall():
+            tree.insert("", END, values=(name, qty))
+
+        tree.pack(padx=15, pady=10, fill="both", expand=True)
+
+        Button(
+            inventory_window,
+            text="Close",
+            width=12,
+            command=inventory_window.destroy
+        ).pack(pady=10)
+
+        log_action(f"VIEW INVENTORY - {self.location_name}")
 
     def set_location(self, location_name):
         self.location_name = location_name
