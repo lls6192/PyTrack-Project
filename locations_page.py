@@ -388,7 +388,7 @@ class LocationPage(ttk.Frame):
         }
 
         # Cones/Container
-        cone_container_options = ["Standard Ice Cream Cone", "Waffle Cone", "Sugar Cone", "Dish with Spoon"]
+        cone_container_options = ["Standard Ice Cream Cone", "Waffle Cone", "Dish with Spoon"]
 
         row_frame = Frame(daily_sales_window)
         row_frame.grid(row=1, column=0, columnspan=6, padx=10, pady=5, sticky="w")
